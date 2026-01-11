@@ -1,0 +1,251 @@
+# ===================================
+# DEPENDENCIES & BUILD ARTIFACTS
+# ===================================
+
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.yarn/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.nuxt/
+.cache/
+
+# ===================================
+# ENVIRONMENT & CONFIGURATION
+# ===================================
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+
+# Configuration files with secrets
+config/secrets.*
+config/*-credentials.json
+*.pem
+*.key
+*.cert
+
+# ===================================
+# DATABASE
+# ===================================
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Prisma
+prisma/.env
+prisma/migrations/**/migration.sql.backup
+
+# MySQL dumps
+*.sql
+*.dump
+
+# ===================================
+# LOGS
+# ===================================
+
+# Log files
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Runtime logs
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# ===================================
+# TESTING
+# ===================================
+
+# Test coverage
+coverage/
+.nyc_output/
+*.lcov
+
+# Test results
+test-results/
+junit.xml
+
+# ===================================
+# IDE & EDITOR
+# ===================================
+
+# VSCode
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# ===================================
+# OPERATING SYSTEM
+# ===================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ===================================
+# TEMPORARY FILES
+# ===================================
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Upload staging
+uploads/
+temp-uploads/
+
+# ===================================
+# DOCKER
+# ===================================
+
+# Docker volumes
+.docker/
+docker-compose.override.yml
+
+# ===================================
+# CLOUD & DEPLOYMENT
+# ===================================
+
+# Vercel
+.vercel
+
+# AWS
+.aws/
+.elasticbeanstalk/
+
+# Google Cloud
+.gcloud/
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# ===================================
+# PACKAGE MANAGERS
+# ===================================
+
+# Yarn
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.yarn/install-state.gz
+
+# pnpm
+.pnpm-store/
+
+# ===================================
+# TYPESCRIPT
+# ===================================
+
+# TypeScript cache
+*.tsbuildinfo
+next-env.d.ts
+
+# ===================================
+# MISC
+# ===================================
+
+# Backup files
+*.backup
+*.old
+
+# Archive files
+*.zip
+*.tar.gz
+*.rar
+
+# Lock files (optional - uncomment if needed)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# ===================================
+# PROJECT SPECIFIC
+# ===================================
+
+# AI model cache
+.ai-cache/
+model-cache/
+
+# OCR processing temp
+ocr-temp/
+
+# Generated question papers (temp)
+generated-papers-temp/
+
+# Analytics data (local)
+analytics-data/
+
+# User feedback exports
+feedback-exports/
+
+# Effectiveness evaluation reports
+evaluation-reports/

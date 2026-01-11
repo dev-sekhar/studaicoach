@@ -1,0 +1,653 @@
+// This is your Prisma schema file
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// MULTI-TENANT BASE MODELS
+// ============================================
+
+model Organization {
+  id            String   @id @default(uuid())
+  name          String
+  subdomain     String   @unique
+  customDomain  String?  @unique
+  type          OrgType
+  tier          SubscriptionTier
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  users         User[]
+  students      Student[]
+  subscriptions Subscription[]
+
+  @@index([subdomain])
+  @@index([type, tier])
+  @@map("organizations")
+}
+
+enum OrgType {
+  INDIVIDUAL
+  SCHOOL
+  COLLEGE
+}
+
+enum SubscriptionTier {
+  FREE
+  PREMIUM_INDIVIDUAL
+  PREMIUM_SCHOOL
+}
+
+// ============================================
+// USER MANAGEMENT
+// ============================================
+
+model User {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  passwordHash   String?
+  name           String
+  username       String   @unique
+  profileSlug    String   @unique
+  role           Role
+  isActive       Boolean  @default(true)
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  studentProfile Student?
+  teacherProfile Teacher?
+  parentProfile  Parent?
+  publicProfile  PublicProfile?
+  feedback       Feedback[]
+
+  @@index([organizationId, email])
+  @@index([username])
+  @@index([profileSlug])
+  @@map("users")
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+  PARENT
+  SCHOOL_ADMIN
+  SUPER_ADMIN
+}
+
+model PublicProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  bio             String?  @db.Text
+  achievements    Json?
+  stats           Json?
+  showProgress    Boolean  @default(false)
+  showLeaderboard Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("public_profiles")
+}
+
+// ============================================
+// ACADEMIC ENTITIES
+// ============================================
+
+model Student {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  organizationId String
+  grade          Int
+  board          Board
+  section        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  answerSheets   AnswerSheet[]
+  progress       Progress[]
+  examSchedules  ExamSchedule[]
+  achievements   Achievement[]
+  parentLinks    ParentStudent[]
+
+  @@index([organizationId, grade])
+  @@index([userId])
+  @@map("students")
+}
+
+enum Board {
+  CBSE
+  ICSE
+  STATE_BOARD
+  IB
+  IGCSE
+}
+
+model Teacher {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("teachers")
+}
+
+model Parent {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  children ParentStudent[]
+
+  @@map("parents")
+}
+
+model ParentStudent {
+  parentId  String
+  studentId String
+  createdAt DateTime @default(now())
+
+  parent  Parent  @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([parentId, studentId])
+  @@map("parent_student")
+}
+
+// ============================================
+// SUBJECT & TOPIC HIERARCHY
+// ============================================
+
+model Subject {
+  id        String   @id @default(uuid())
+  name      String
+  board     Board
+  grade     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  topics  Topic[]
+  rubrics Rubric[]
+
+  @@unique([name, board, grade])
+  @@index([board, grade])
+  @@map("subjects")
+}
+
+model Topic {
+  id        String   @id @default(uuid())
+  name      String
+  subjectId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subject   Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  subtopics Subtopic[]
+  progress  Progress[]
+
+  @@index([subjectId])
+  @@map("topics")
+}
+
+model Subtopic {
+  id        String   @id @default(uuid())
+  name      String
+  topicId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  topic Topic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@index([topicId])
+  @@map("subtopics")
+}
+
+// ============================================
+// RUBRIC STORAGE
+// ============================================
+
+model Rubric {
+  id            String   @id @default(uuid())
+  subjectId     String
+  board         Board
+  grade         Int
+  topicId       String?
+  year          Int?
+  title         String
+  markingScheme Json
+  totalMarks    Int
+  sourceUrl     String?
+  isVerified    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@index([subjectId, board, grade])
+  @@map("rubrics")
+}
+
+// ============================================
+// ASSESSMENT & PROGRESS
+// ============================================
+
+model AnswerSheet {
+  id               String            @id @default(uuid())
+  studentId        String
+  subjectId        String
+  examScheduleId   String?
+  assessmentType   AssessmentType
+  questionType     QuestionType
+  filePath         String?
+  fileName         String?
+  fileSize         Int?
+  mimeType         String?
+  notes            String?           @db.Text
+  uploadedAt       DateTime          @default(now())
+  processingStatus ProcessingStatus
+  analysisId       String?           @unique
+  isCorrected      Boolean           @default(false)
+  totalMarks       Int?
+  obtainedMarks    Float?
+  updatedAt        DateTime          @updatedAt
+
+  student        Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  ocrCorrections OcrCorrection[]
+  analysis       AnswerSheetAnalysis?
+
+  @@index([studentId, uploadedAt])
+  @@map("answer_sheets")
+}
+
+enum AssessmentType {
+  FORMATIVE
+  SUMMATIVE
+  MOCK_TEST
+  HOMEWORK
+  PRACTICE
+}
+
+enum QuestionType {
+  MCQ
+  SUBJECTIVE
+  MIXED
+}
+
+enum ProcessingStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model OcrCorrection {
+  id            String   @id @default(uuid())
+  answerSheetId String
+  pageNumber    Int
+  blockIndex    Int
+  originalText  String   @db.Text
+  correctedText String   @db.Text
+  correctedBy   String
+  correctedAt   DateTime @default(now())
+
+  answerSheet AnswerSheet @relation(fields: [answerSheetId], references: [id], onDelete: Cascade)
+
+  @@index([answerSheetId])
+  @@map("ocr_corrections")
+}
+
+model AnswerSheetAnalysis {
+  id                String   @id @default(uuid())
+  answerSheetId     String   @unique
+  extractedText     Json
+  identifiedTopics  Json
+  evaluation        Json
+  recommendations   Json
+  autoCorrection    Json?
+  piiObfuscated     Boolean  @default(true)
+  processedAt       DateTime @default(now())
+  processingTimeMs  Int
+
+  answerSheet AnswerSheet @relation(fields: [answerSheetId], references: [id], onDelete: Cascade)
+
+  @@index([answerSheetId])
+  @@map("answer_sheet_analysis")
+}
+
+model Progress {
+  id             String   @id @default(uuid())
+  studentId      String
+  topicId        String
+  readinessScore Float
+  lastAssessed   DateTime
+  trend          Trend
+  updatedAt      DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  topic   Topic   @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, topicId])
+  @@index([studentId])
+  @@map("progress")
+}
+
+enum Trend {
+  IMPROVING
+  STABLE
+  DECLINING
+}
+
+// ============================================
+// EXAM SCHEDULING
+// ============================================
+
+model ExamSchedule {
+  id        String   @id @default(uuid())
+  studentId String
+  subjectId String
+  examName  String
+  examDate  DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student   Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  reminders Reminder[]
+
+  @@index([studentId, examDate])
+  @@map("exam_schedules")
+}
+
+model Reminder {
+  id             String       @id @default(uuid())
+  examScheduleId String
+  reminderDate   DateTime
+  type           ReminderType
+  message        String       @db.Text
+  sent           Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  examSchedule ExamSchedule @relation(fields: [examScheduleId], references: [id], onDelete: Cascade)
+
+  @@index([examScheduleId])
+  @@index([reminderDate, sent])
+  @@map("reminders")
+}
+
+enum ReminderType {
+  REVISION_PROMPT
+  REMEDIAL_ACTION
+  STUDY_PLAN
+}
+
+// ============================================
+// GAMIFICATION
+// ============================================
+
+model Achievement {
+  id        String    @id @default(uuid())
+  studentId String
+  badgeType BadgeType
+  earnedAt  DateTime  @default(now())
+  points    Int
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, earnedAt])
+  @@map("achievements")
+}
+
+enum BadgeType {
+  FIRST_UPLOAD
+  STREAK_7_DAYS
+  STREAK_30_DAYS
+  PERFECT_SCORE
+  MOST_IMPROVED
+  TOPIC_MASTER
+}
+
+model Leaderboard {
+  id          String            @id @default(uuid())
+  studentId   String
+  scope       LeaderboardScope
+  scopeId     String?
+  totalPoints Int
+  rank        Int
+  updatedAt   DateTime          @updatedAt
+
+  @@unique([studentId, scope, scopeId])
+  @@index([scope, scopeId, rank])
+  @@map("leaderboards")
+}
+
+enum LeaderboardScope {
+  CLASS
+  SCHOOL
+  GLOBAL
+}
+
+// ============================================
+// SUBSCRIPTION MANAGEMENT
+// ============================================
+
+model Subscription {
+  id             String             @id @default(uuid())
+  organizationId String
+  tier           SubscriptionTier
+  startDate      DateTime
+  endDate        DateTime?
+  status         SubscriptionStatus
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoices     Invoice[]
+
+  @@index([organizationId, status])
+  @@map("subscriptions")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+}
+
+model Invoice {
+  id             String        @id @default(uuid())
+  subscriptionId String
+  amount         Float
+  currency       String
+  status         InvoiceStatus
+  paidAt         DateTime?
+  createdAt      DateTime      @default(now())
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+  @@map("invoices")
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+// ============================================
+// AI TOKEN USAGE TRACKING
+// ============================================
+
+model TokenUsage {
+  id               String   @id @default(uuid())
+  userId           String
+  organizationId   String
+  service          String
+  model            String
+  promptTokens     Int
+  completionTokens Int
+  totalTokens      Int
+  estimatedCost    Float
+  timestamp        DateTime @default(now())
+
+  @@index([userId, timestamp])
+  @@index([organizationId, timestamp])
+  @@map("token_usage")
+}
+
+// ============================================
+// QUESTION PAPER GENERATION
+// ============================================
+
+model GeneratedQuestionPaper {
+  id            String   @id @default(uuid())
+  subjectId     String
+  board         Board
+  grade         Int
+  topicIds      Json
+  pattern       String
+  totalMarks    Int
+  duration      Int
+  questions     Json
+  generatedBy   String
+  generatedAt   DateTime @default(now())
+  downloadCount Int      @default(0)
+
+  @@index([subjectId, board, grade])
+  @@map("generated_question_papers")
+}
+
+// ============================================
+// FEEDBACK SYSTEM
+// ============================================
+
+model Feedback {
+  id          String           @id @default(uuid())
+  userId      String
+  type        FeedbackType
+  category    FeedbackCategory
+  title       String
+  description String           @db.Text
+  rating      Int?
+  attachments Json?
+  status      FeedbackStatus
+  priority    FeedbackPriority
+  assignedTo  String?
+  resolution  String?          @db.Text
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  resolvedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status, priority])
+  @@map("feedback")
+}
+
+enum FeedbackType {
+  BUG_REPORT
+  FEATURE_REQUEST
+  GENERAL_FEEDBACK
+  COMPLAINT
+  PRAISE
+}
+
+enum FeedbackCategory {
+  OCR_ACCURACY
+  AI_EVALUATION
+  UI_UX
+  PERFORMANCE
+  AUTHENTICATION
+  BILLING
+  OTHER
+}
+
+enum FeedbackStatus {
+  SUBMITTED
+  ACKNOWLEDGED
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+  WONT_FIX
+}
+
+enum FeedbackPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// ============================================
+// CHAT CONVERSATIONS
+// ============================================
+
+model ChatConversation {
+  id         String   @id @default(uuid())
+  userId     String
+  messages   Json
+  tokenUsage Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId, updatedAt])
+  @@map("chat_conversations")
+}
+
+// ============================================
+// EFFECTIVENESS EVALUATION
+// ============================================
+
+model EffectivenessEvaluation {
+  id                     String            @id @default(uuid())
+  evaluationDate         DateTime
+  period                 String
+  ocrAccuracyAvg         Float
+  ocrConfidenceAvg       Float
+  manualCorrectionsCount Int
+  aiEvaluationAccuracy   Float
+  tokenUsageTotal        Int
+  tokenCostTotal         Float
+  activeUsers            Int
+  newUsers               Int
+  churnRate              Float
+  avgUploadsPerUser      Float
+  avgProcessingTime      Float
+  errorRate              Float
+  uptime                 Float
+  recommendations        Json
+  actionItems            Json
+  status                 EvaluationStatus
+  generatedBy            String
+  reviewedBy             String?
+  createdAt              DateTime          @default(now())
+
+  @@index([evaluationDate])
+  @@map("effectiveness_evaluations")
+}
+
+enum EvaluationStatus {
+  GENERATED
+  UNDER_REVIEW
+  APPROVED
+  IMPLEMENTED
+}
