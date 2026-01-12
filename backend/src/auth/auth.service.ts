@@ -78,8 +78,8 @@ export class AuthService {
                 data: {
                     userId: user.id,
                     organizationId: user.organizationId,
-                    grade: 10, // Default, can be updated later
-                    board: 'CBSE', // Default
+                    grade: dto.grade || 10, // Use provided grade or default to 10
+                    board: (dto.board as any) || 'CBSE', // Use provided board or default to CBSE
                 },
             });
         } else if (user.role === 'TEACHER') {

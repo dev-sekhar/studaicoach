@@ -5,6 +5,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { AnswerSheetModule } from './answer-sheets/answer-sheet.module';
+import { SubjectModule } from './subjects/subject.module';
 import { QueueModule } from './queue/queue.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { AppController } from './app.controller';
@@ -34,6 +35,7 @@ import { AppController } from './app.controller';
     // Feature modules
     AuthModule,
     AnswerSheetModule,
+    SubjectModule,
   ],
   controllers: [AppController],
   providers: [

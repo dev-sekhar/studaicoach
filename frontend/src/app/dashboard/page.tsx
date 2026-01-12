@@ -1,71 +1,209 @@
-"use client";
+'use client';
 
-import DashboardLayout from "@/components/layout/DashboardLayout";
-import { motion } from "framer-motion";
-import { useAuth } from "@/context/AuthContext";
-import { Upload, FileText, BarChart2 } from "lucide-react";
-import Link from "next/link";
+import { useState, useEffect } from 'react';
+import { FileText, ListTodo, Save, Download, Upload } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import { Prism } from 'react-syntax-highlighter';
+const SyntaxHighlighter = Prism as any;
+import dracula from 'react-syntax-highlighter/dist/esm/styles/prism/dracula';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 
-export default function DashboardPage() {
-    const { user } = useAuth();
+type Tab = 'implementation' | 'tasks';
 
-    const cards = [
-        {
-            title: "Upload Answer Sheet",
-            description: "Upload PDF or image files for AI grading",
-            icon: Upload,
-            href: "/dashboard/upload",
-            color: "from-purple-500 to-indigo-500",
-        },
-        {
-            title: "View Results",
-            description: "Check analysis and grades for uploaded sheets",
-            icon: FileText,
-            href: "/dashboard/answer-sheets",
-            color: "from-pink-500 to-rose-500",
-        },
-        {
-            title: "Analytics",
-            description: "Track performance and progress over time",
-            icon: BarChart2,
-            href: "/dashboard/analytics",
-            color: "from-blue-500 to-cyan-500",
-        },
-    ];
+export default function AdminDashboard() {
+    const [activeTab, setActiveTab] = useState<Tab>('implementation');
+    const [implementationPlan, setImplementationPlan] = useState('');
+    const [taskList, setTaskList] = useState('');
+    const [isEditing, setIsEditing] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        loadDocuments();
+    }, []);
+
+    const loadDocuments = async () => {
+        try {
+            const implRes = await fetch('/api/documents/implementation-plan');
+            const taskRes = await fetch('/api/documents/task-list');
+
+            if (implRes.ok) {
+                const data = await implRes.json();
+                setImplementationPlan(data.content);
+            }
+
+            if (taskRes.ok) {
+                const data = await taskRes.json();
+                setTaskList(data.content);
+            }
+        } catch (error) {
+            console.error('Failed to load documents:', error);
+        }
+    };
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        try {
+            const endpoint = activeTab === 'implementation'
+                ? '/api/documents/implementation-plan'
+                : '/api/documents/task-list';
+
+            const content = activeTab === 'implementation' ? implementationPlan : taskList;
+
+            const res = await fetch(endpoint, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content }),
+            });
+
+            if (res.ok) {
+                alert('Document saved successfully!');
+                setIsEditing(false);
+            } else {
+                alert('Failed to save document');
+            }
+        } catch (error) {
+            console.error('Save error:', error);
+            alert('Failed to save document');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleDownload = () => {
+        const content = activeTab === 'implementation' ? implementationPlan : taskList;
+        const filename = activeTab === 'implementation' ? 'implementation_plan.md' : 'task.md';
+
+        const blob = new Blob([content], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const content = e.target?.result as string;
+            if (activeTab === 'implementation') {
+                setImplementationPlan(content);
+            } else {
+                setTaskList(content);
+            }
+        };
+        reader.readAsText(file);
+    };
+
+    const currentContent = activeTab === 'implementation' ? implementationPlan : taskList;
+    const setCurrentContent = activeTab === 'implementation' ? setImplementationPlan : setTaskList;
 
     return (
         <DashboardLayout>
-            <div className="space-y-8">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight mb-2">
-                        Welcome back, <span className="text-purple-400">{user?.name}</span>
-                    </h1>
-                    <p className="text-muted-foreground">Here's what you can do today.</p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {cards.map((card, index) => (
-                        <Link key={index} href={card.href}>
-                            <motion.div
-                                whileHover={{ y: -5 }}
-                                className="p-6 rounded-2xl glass-card border border-white/5 hover:border-white/20 transition-all cursor-pointer h-full group"
-                            >
-                                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${card.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                                    <card.icon className="text-white" size={24} />
-                                </div>
-                                <h3 className="text-xl font-semibold mb-2">{card.title}</h3>
-                                <p className="text-muted-foreground text-sm">{card.description}</p>
-                            </motion.div>
-                        </Link>
-                    ))}
-                </div>
-
-                {/* Recent Activity Section could go here */}
-                <div className="mt-8">
-                    <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
-                    <div className="glass-card rounded-xl p-8 text-center text-muted-foreground">
-                        No recent activity to show.
+            <div className="space-y-6">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
+                            Documentation
+                        </h1>
+                        <p className="text-slate-600 dark:text-slate-400 mt-1">
+                            Manage implementation plans and task lists
+                        </p>
                     </div>
+                    <div className="flex items-center gap-3">
+                        {isEditing ? (
+                            <button
+                                onClick={handleSave}
+                                disabled={isSaving}
+                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                            >
+                                <Save className="w-4 h-4" />
+                                <span className="text-sm font-medium">
+                                    {isSaving ? 'Saving...' : 'Save'}
+                                </span>
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => setIsEditing(true)}
+                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                                <span className="text-sm font-medium">Edit</span>
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {/* Tabs */}
+                <div className="flex gap-2 border-b border-slate-200 dark:border-slate-700">
+                    <button
+                        onClick={() => setActiveTab('implementation')}
+                        className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors ${activeTab === 'implementation'
+                            ? 'text-blue-600 border-b-2 border-blue-600'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                            }`}
+                    >
+                        <FileText className="w-5 h-5" />
+                        Implementation Plan
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('tasks')}
+                        className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors ${activeTab === 'tasks'
+                            ? 'text-blue-600 border-b-2 border-blue-600'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                            }`}
+                    >
+                        <ListTodo className="w-5 h-5" />
+                        Task List
+                    </button>
+                </div>
+
+                {/* Content */}
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    {isEditing ? (
+                        <textarea
+                            value={currentContent}
+                            onChange={(e) => setCurrentContent(e.target.value)}
+                            className="w-full h-[calc(100vh-400px)] p-6 font-mono text-sm bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-none focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                            placeholder="Enter markdown content..."
+                        />
+                    ) : (
+                        <div className="p-8 overflow-auto h-[calc(100vh-400px)]">
+                            <div className="prose prose-lg prose-slate dark:prose-invert max-w-none text-slate-900 dark:text-slate-100">
+                                <ReactMarkdown
+                                    components={{
+                                        code({ inline, className, children, ...props }: any) {
+                                            const match = /language-(\w+)/.exec(className || '');
+                                            return !inline && match ? (
+                                                <SyntaxHighlighter
+                                                    style={dracula}
+                                                    language={match[1]}
+                                                    PreTag="div"
+                                                    customStyle={{
+                                                        borderRadius: '0.5rem',
+                                                        padding: '1rem',
+                                                        fontSize: '0.875rem',
+                                                    }}
+                                                    {...props}
+                                                >
+                                                    {String(children).replace(/\n$/, '')}
+                                                </SyntaxHighlighter>
+                                            ) : (
+                                                <code className={className} {...props}>
+                                                    {children}
+                                                </code>
+                                            );
+                                        },
+                                    }}
+                                >
+                                    {currentContent || '# No content available\n\nPlease upload or create a document.'}
+                                </ReactMarkdown>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </DashboardLayout>

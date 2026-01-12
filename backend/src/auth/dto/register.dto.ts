@@ -36,4 +36,13 @@ export class RegisterDto {
     @IsOptional()
     @IsString()
     organizationId?: string;
+
+    @ApiProperty({ required: false, example: 10 })
+    @IsOptional()
+    grade?: number;
+
+    @ApiProperty({ required: false, enum: ['CBSE', 'ICSE', 'IGCSE', 'STATE_BOARD', 'IB'], example: 'CBSE' })
+    @IsOptional()
+    @IsString()
+    board?: string;
 }
