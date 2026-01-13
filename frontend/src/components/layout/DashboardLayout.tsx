@@ -14,7 +14,8 @@ import {
     X,
     Upload,
     BookOpen,
-    GraduationCap
+    GraduationCap,
+    Building2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -57,11 +58,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         );
     }
 
-    const navItems = [
+    // Role-based navigation items
+    const navItems = isAdmin ? [
         { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
-        { name: "Answer Sheets", href: "/dashboard/answer-sheets", icon: FileText },
         { name: "Subjects", href: "/dashboard/subjects", icon: GraduationCap },
+        { name: "Boards", href: "/dashboard/boards", icon: Building2 },
         { name: "Users", href: "/dashboard/users", icon: Users },
+        { name: "Settings", href: "/dashboard/settings", icon: Settings },
+    ] : [
+        { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
+        { name: "Upload Answer Sheet", href: "/dashboard/upload", icon: Upload },
+        { name: "My Submissions", href: "/dashboard/answer-sheets", icon: FileText },
+        { name: "My Progress", href: "/dashboard/progress", icon: BookOpen },
         { name: "Settings", href: "/dashboard/settings", icon: Settings },
     ];
 

@@ -8,12 +8,13 @@ async function main() {
 
     // Create default organization
     const organization = await prisma.organization.upsert({
-        where: { id: 1 },
+        where: { subdomain: 'admin' },
         update: {},
         create: {
             name: 'StudAICoach Admin',
+            subdomain: 'admin',
             type: 'SCHOOL',
-            contactEmail: 'admin@studaicoach.com',
+            tier: 'FREE',
             isActive: true,
         },
     });
@@ -28,8 +29,10 @@ async function main() {
         update: {},
         create: {
             email: 'admin@studaicoach.com',
-            password: hashedPassword,
+            passwordHash: hashedPassword,
             name: 'Super Admin',
+            username: 'superadmin',
+            profileSlug: 'superadmin',
             role: Role.SUPER_ADMIN,
             organizationId: organization.id,
             isActive: true,

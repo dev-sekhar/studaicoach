@@ -174,22 +174,48 @@ model ParentStudent {
 }
 
 // ============================================
+// CUSTOM BOARDS (for SUPER_ADMIN)
+// ============================================
+
+model CustomBoard {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  code        String   @unique
+  country     String?
+  description String?  @db.Text
+  websiteUrl  String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subjects Subject[]
+
+  @@map("custom_boards")
+}
+
+// ============================================
 // SUBJECT & TOPIC HIERARCHY
 // ============================================
 
 model Subject {
-  id        String   @id @default(uuid())
-  name      String
-  board     Board
-  grade     Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(uuid())
+  name          String
+  code          String?
+  board         Board?
+  customBoardId String?
+  grade         Int
+  syllabusUrl   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  topics  Topic[]
-  rubrics Rubric[]
+  customBoard  CustomBoard?  @relation(fields: [customBoardId], references: [id], onDelete: Cascade)
+  topics       Topic[]
+  rubrics      Rubric[]
+  answerSheets AnswerSheet[]
 
-  @@unique([name, board, grade])
+  @@unique([name, board, customBoardId, grade])
   @@index([board, grade])
+  @@index([customBoardId, grade])
   @@map("subjects")
 }
 
@@ -271,6 +297,7 @@ model AnswerSheet {
   updatedAt        DateTime          @updatedAt
 
   student        Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject        Subject         @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   ocrCorrections OcrCorrection[]
   analysis       AnswerSheetAnalysis?
 

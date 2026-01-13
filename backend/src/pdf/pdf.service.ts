@@ -51,13 +51,23 @@ export class PdfService {
      * Get PDF information (number of pages, etc.)
      */
     private async getPdfInfo(pdfPath: string): Promise<{ pages: number }> {
-        const pdfParse = require('pdf-parse');
-        const dataBuffer = await fs.readFile(pdfPath);
-        const data = await pdfParse(dataBuffer);
+        try {
+            // Use pdf-lib - simple and reliable
+            const { PDFDocument } = await import('pdf-lib');
 
-        return {
-            pages: data.numpages,
-        };
+            const dataBuffer = await fs.readFile(pdfPath);
+            const pdfDoc = await PDFDocument.load(dataBuffer);
+            const numPages = pdfDoc.getPageCount();
+
+            console.log(`📄 PDF has ${numPages} pages`);
+
+            return {
+                pages: numPages,
+            };
+        } catch (error) {
+            console.error('❌ Error in getPdfInfo:', error);
+            throw error;
+        }
     }
 
     /**

@@ -6,7 +6,9 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { AnswerSheetModule } from './answer-sheets/answer-sheet.module';
 import { SubjectModule } from './subjects/subject.module';
+import { BoardModule } from './boards/board.module';
 import { QueueModule } from './queue/queue.module';
+import { OcrModule } from './ocr/ocr.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { AppController } from './app.controller';
 
@@ -36,6 +38,8 @@ import { AppController } from './app.controller';
     AuthModule,
     AnswerSheetModule,
     SubjectModule,
+    BoardModule,
+    OcrModule, // Added OCR module to register the processor
   ],
   controllers: [AppController],
   providers: [

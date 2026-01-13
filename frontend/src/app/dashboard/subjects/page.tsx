@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 
 export default function SubjectsPage() {
     const [subjects, setSubjects] = useState<any[]>([]);
+    const [customBoards, setCustomBoards] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [editingSubject, setEditingSubject] = useState<any>(null);
@@ -16,13 +17,24 @@ export default function SubjectsPage() {
         name: '',
         code: '',
         board: 'CBSE',
+        customBoardId: '',
         grade: '10',
         syllabusUrl: '',
     });
 
     useEffect(() => {
         fetchSubjects();
+        fetchCustomBoards();
     }, []);
+
+    const fetchCustomBoards = async () => {
+        try {
+            const res = await api.get('/boards/custom');
+            setCustomBoards(res.data);
+        } catch (error) {
+            console.error('Failed to fetch custom boards:', error);
+        }
+    };
 
     const fetchSubjects = async () => {
         try {
@@ -53,7 +65,7 @@ export default function SubjectsPage() {
             }
             setShowModal(false);
             setEditingSubject(null);
-            setFormData({ name: '', code: '', board: 'CBSE', grade: '10', syllabusUrl: '' });
+            setFormData({ name: '', code: '', board: 'CBSE', customBoardId: '', grade: '10', syllabusUrl: '' });
             fetchSubjects();
         } catch (error: any) {
             toast.error(error.response?.data?.message || 'Failed to save subject');
@@ -76,7 +88,8 @@ export default function SubjectsPage() {
         setFormData({
             name: subject.name,
             code: subject.code || '',
-            board: subject.board,
+            board: subject.board || 'CBSE',
+            customBoardId: subject.customBoardId || '',
             grade: subject.grade.toString(),
             syllabusUrl: subject.syllabusUrl || '',
         });
@@ -91,7 +104,7 @@ export default function SubjectsPage() {
                         <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Subjects</h1>
                         <p className="text-slate-600 dark:text-slate-400">Manage subjects for different boards and grades</p>
                     </div>
-                    <Button onClick={() => { setShowModal(true); setEditingSubject(null); setFormData({ name: '', code: '', board: 'CBSE', grade: '10', syllabusUrl: '' }); }}>
+                    <Button onClick={() => { setShowModal(true); setEditingSubject(null); setFormData({ name: '', code: '', board: 'CBSE', customBoardId: '', grade: '10', syllabusUrl: '' }); }}>
                         <Plus className="w-4 h-4 mr-2" />
                         Add Subject
                     </Button>

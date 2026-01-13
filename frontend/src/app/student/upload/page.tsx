@@ -23,15 +23,18 @@ export default function StudentUploadPage() {
     useEffect(() => {
         const fetchSubjects = async () => {
             try {
+                console.log('🔍 Fetching subjects for:', { board, grade });
                 const res = await api.get(`/subjects?board=${board}&grade=${grade}`);
+                console.log('✅ Received subjects:', res.data);
                 setSubjects(res.data);
                 if (res.data.length > 0) {
                     setSubjectId(res.data[0].id);
                 } else {
                     setSubjectId('');
+                    console.warn('⚠️ No subjects found for', { board, grade });
                 }
             } catch (error) {
-                console.error('Failed to fetch subjects:', error);
+                console.error('❌ Failed to fetch subjects:', error);
                 toast.error('Failed to load subjects');
             }
         };

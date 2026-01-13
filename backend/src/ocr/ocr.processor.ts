@@ -20,11 +20,19 @@ export class OcrProcessor {
         private ocrService: OcrService,
     ) { }
 
+    onModuleInit() {
+        console.log('🎯 OCR Processor initialized and ready to process jobs');
+    }
+
     @Process('extract-text')
     async handleOcrExtraction(job: Job<OcrJobData>) {
         const { answerSheetId, filePath, fileType } = job.data;
 
-        console.log(`Processing OCR for answer sheet: ${answerSheetId}`);
+        console.log('📝 ========================================');
+        console.log(`📝 Starting OCR job for answer sheet: ${answerSheetId}`);
+        console.log(`📝 File path: ${filePath}`);
+        console.log(`📝 File type: ${fileType}`);
+        console.log('📝 ========================================');
 
         try {
             // Update status to PROCESSING
@@ -32,36 +40,21 @@ export class OcrProcessor {
                 where: { id: answerSheetId },
                 data: { processingStatus: 'PROCESSING' },
             });
+            console.log('✅ Updated status to PROCESSING');
 
-            let imagePaths: string[] = [];
+            // Google Cloud Vision can process PDFs directly - no need to convert!
+            console.log(`📄 Processing file: ${filePath} (${fileType})`);
 
-            // Convert PDF to images if needed
-            if (fileType === 'application/pdf') {
-                console.log('Converting PDF to images...');
-                imagePaths = await this.pdfService.convertToImages(filePath);
-            } else {
-                // Already an image
-                imagePaths = [filePath];
-            }
+            // Process the file directly (works for both PDFs and images)
+            const result = await this.ocrService.extractText(filePath);
 
-            console.log(`Processing ${imagePaths.length} image(s)...`);
-
-            // Process each page/image
-            const ocrResults = [];
-
-            for (let i = 0; i < imagePaths.length; i++) {
-                const imagePath = imagePaths[i];
-                console.log(`Extracting text from page ${i + 1}...`);
-
-                const result = await this.ocrService.extractText(imagePath);
-                ocrResults.push({
-                    pageNumber: i + 1,
-                    text: result.text,
-                    confidence: result.confidence,
-                    blocks: result.blocks,
-                    isTrustworthy: result.isTrustworthy,
-                });
-            }
+            const ocrResults = [{
+                pageNumber: 1,
+                text: result.text,
+                confidence: result.confidence,
+                blocks: result.blocks,
+                isTrustworthy: result.isTrustworthy,
+            }];
 
             // Calculate overall confidence
             const avgConfidence = ocrResults.reduce((sum, r) => sum + r.confidence, 0) / ocrResults.length;
@@ -77,7 +70,7 @@ export class OcrProcessor {
                         pages: ocrResults,
                         avgConfidence,
                         isTrustworthy,
-                    },
+                    } as any, // Cast to any for Prisma JSON field
                     identifiedTopics: [],
                     evaluation: {},
                     recommendations: {},
@@ -95,11 +88,6 @@ export class OcrProcessor {
                 },
             });
 
-            // Clean up temporary image files (if PDF was converted)
-            if (fileType === 'application/pdf' && imagePaths.length > 0) {
-                await this.pdfService.cleanupImages(imagePaths);
-            }
-
             console.log(`OCR processing completed for answer sheet: ${answerSheetId}`);
 
             return {
@@ -109,7 +97,15 @@ export class OcrProcessor {
                 isTrustworthy,
             };
         } catch (error) {
-            console.error(`OCR processing failed for answer sheet: ${answerSheetId}`, error);
+            console.error('❌ ========================================');
+            console.error(`❌ OCR processing failed for answer sheet: ${answerSheetId}`);
+            console.error('❌ Error details:');
+            console.error(error);
+            if (error.stack) {
+                console.error('❌ Stack trace:');
+                console.error(error.stack);
+            }
+            console.error('❌ ========================================');
 
             // Update status to FAILED
             await this.prisma.answerSheet.update({

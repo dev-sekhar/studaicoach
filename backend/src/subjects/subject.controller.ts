@@ -16,14 +16,25 @@ export class SubjectController {
         @Query('board') board?: string,
         @Query('grade') grade?: string,
     ) {
+        console.log('📚 Fetching subjects with filters:', { board, grade });
+
         const where: any = {};
         if (board) where.board = board;
         if (grade) where.grade = parseInt(grade);
 
-        return this.prisma.subject.findMany({
+        console.log('🔍 Query where clause:', where);
+
+        const subjects = await this.prisma.subject.findMany({
             where,
             orderBy: { name: 'asc' },
         });
+
+        console.log(`✅ Found ${subjects.length} subjects`);
+        if (subjects.length > 0) {
+            console.log('📋 First subject:', subjects[0]);
+        }
+
+        return subjects;
     }
 
     @Post()

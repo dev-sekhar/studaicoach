@@ -11,6 +11,14 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
                     host: configService.get('REDIS_HOST') || 'localhost',
                     port: configService.get('REDIS_PORT') || 6379,
                     password: configService.get('REDIS_PASSWORD'),
+                    maxRetriesPerRequest: 3,
+                    enableReadyCheck: false,
+                    retryStrategy: (times) => {
+                        if (times > 3) {
+                            return null; // Stop retrying
+                        }
+                        return Math.min(times * 100, 3000);
+                    },
                 },
             }),
             inject: [ConfigService],
