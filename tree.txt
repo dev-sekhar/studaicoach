@@ -1,0 +1,995 @@
+.
+|____.env.example
+|____.git
+| |____COMMIT_EDITMSG
+| |____config
+| |____description
+| |____FETCH_HEAD
+| |____HEAD
+| |____hooks
+| | |____applypatch-msg.sample
+| | |____commit-msg.sample
+| | |____fsmonitor-watchman.sample
+| | |____post-update.sample
+| | |____pre-applypatch.sample
+| | |____pre-commit.sample
+| | |____pre-merge-commit.sample
+| | |____pre-push.sample
+| | |____pre-rebase.sample
+| | |____pre-receive.sample
+| | |____prepare-commit-msg.sample
+| | |____push-to-checkout.sample
+| | |____update.sample
+| |____index
+| |____info
+| | |____exclude
+| |____logs
+| | |____HEAD
+| | |____refs
+| | | |____heads
+| | | | |____dev
+| | | |____remotes
+| | | | |____origin
+| | | | | |____dev
+| |____objects
+| | |____00
+| | | |____0577743613fd3d00caa97f91113e2fb0018364
+| | | |____26b2513e3e40c070930227334dcef146a8418d
+| | | |____6efa5949b2abe054341a1c559f2a445b535d72
+| | |____03
+| | | |____40c7608c099926e912f64a67eb6522f84f043d
+| | | |____418a1ccc1f47ebc3fb4766cdcf0756563daa89
+| | |____05
+| | | |____db4eaea22fd139f1ab4df242a0145317901a08
+| | | |____de5745ec549795528e0e051a8d115419d657df
+| | |____06
+| | | |____6a50ed6dc91c8778b8e7e61de730b2956c1cc0
+| | |____07
+| | | |____05222614ec0198e87a757c6f596cd8cddfa24c
+| | |____08
+| | | |____cfc616916af2989aef76c34b188fc2206bf34d
+| | |____09
+| | | |____27f3ce7287e4039b3548638449de6e5b1c2641
+| | | |____addfb070d868abc0a37da47793a32f22a78336
+| | | |____b58e20232bda3dce57cb126159295d77ed145b
+| | | |____dbcf094bfa45ffeef33f50beecda9ef072c51f
+| | | |____f45b7c0cd894bf4504beb88a3348e3761746e7
+| | |____0b
+| | | |____18e0c3518c77a1eb233f193847e7aac8c4eaae
+| | |____0d
+| | | |____0c0d7e7cefd99881492aad18e2e18e5f4e4252
+| | | |____ff1309f0dc39b2575d4a8dfc5ccb71fda0100c
+| | |____0e
+| | | |____60a2c28b9bacd6f18d6efcf821fbeac4d2ac7e
+| | | |____a609f930b1560f6bfb7b8ab02abbcb03f6c0b3
+| | |____0f
+| | | |____58aefed57548e6b9514d5d2e6d116b9a98ad27
+| | | |____9fb91a69a072121a75fcb36a6513b86401773f
+| | | |____ab2077f392c1a8a7cb922b7d232d65050bc183
+| | |____10
+| | | |____e34c8af5114745211c714a911636e19f4d712c
+| | |____13
+| | | |____887d4453b9eb344dffa9f1dd6e27b54a928b79
+| | |____15
+| | | |____b265d78d6f0de9e01d55b5f64a78c8767c839a
+| | |____16
+| | | |____04c6f9c47b3fb54ccd97f3ebb266e0a9eb15e7
+| | |____18
+| | | |____1a2b850550fad7040a4b829d4e0c9c8e0d02c7
+| | | |____44ec8a789c59b08778fb4bca8e4c408109f5c9
+| | |____19
+| | | |____ebfe16fe76d3c63e3c823a8d84627168c2ddd1
+| | |____1a
+| | | |____01ef3e10db6a992582fb57c4ecd73e06246a84
+| | | |____3cc64e655da730ffcefc51bc23d81538a00eef
+| | |____1f
+| | | |____73893d59376d1af23d53f00e57b2dc352d1e78
+| | |____22
+| | | |____a7337d70ff51396fc0a559037e61d886db8950
+| | |____24
+| | | |____ed1628f2fb3fe6c5ffa03b2be2e6a2d8c5431e
+| | |____25
+| | | |____ca0916931b0acbc6a5c3e763c36a5e848f7bcb
+| | |____27
+| | | |____380cb3f320cb44c9dda15fab8d4d1d293932c9
+| | |____29
+| | | |____8942c9f46786a837e09973a343dcc2de7e5c22
+| | |____2d
+| | | |____53aadee2750b90c527faad6e9aee6e2603befa
+| | | |____830e94208cd3217498c3d85396895a392f0936
+| | |____2f
+| | | |____14be48071b24a972f810531c3c251c816ea8c6
+| | |____30
+| | | |____6caf4462737a6f80696bee943c4bcc98e235d4
+| | |____31
+| | | |____f50ec75a80382389440ba00489b27c91871d5e
+| | |____32
+| | | |____d08694cd30c2e13209b8918c64b0442e0be538
+| | | |____e53de5b88028f885922cc7281190b776ed3703
+| | |____33
+| | | |____cd943cd86b3aa578c3f39b0a4ebe43134da91a
+| | |____35
+| | | |____b1caf5d9542c579d1ed8313dacd523e4c8857b
+| | |____36
+| | | |____852c54f010731b3658b7c99407e42994c68cf6
+| | |____37
+| | | |____343211046c95ad7e28b3302fad3c3156fb4702
+| | | |____abe6f2c4c4311bb0381e264ecb0014c22da546
+| | |____38
+| | | |____561f6aeb4e559a9a430442395e0bcd468a7339
+| | | |____aa617eb02fee793ad51c7b2b3a77627cb64ba1
+| | |____39
+| | | |____c16fa493f47e574cc95f09821ed2fd3c0be661
+| | |____3a
+| | | |____0b412888dc896533faa8b68b75660dad704500
+| | | |____3f5bdeaf510eab6ecab1e57edd517c9a224492
+| | |____3d
+| | | |____9f41219558bc0cdfb22cfd7020f266756df7a1
+| | | |____c6be83c908c196ed1944f3c5a087e2d7612afc
+| | |____3e
+| | | |____71a9013d8c4366fd8fd77b5d92b31b45979807
+| | | |____b68c6e66903a91d966cebd0c835a04daf7fec1
+| | |____3f
+| | | |____e4fd5f8bad5d49af404fade36f1ac41f09277f
+| | |____40
+| | | |____001f750cfeee93c4daca1f617e2b082e88d958
+| | |____41
+| | | |____b0611dc8149f2e466a42cf7d688222c7da3a10
+| | |____42
+| | | |____4ec0492ee8677d8918fe6395a1d18e969608c8
+| | | |____fd738cd55935f361c9c1103f4ff4daba8f85eb
+| | |____43
+| | | |____8567a0c5189bd8d480a5c6708103a9b52f8180
+| | |____45
+| | | |____fb8b06bd67911582ecfe23ecc3808edde30196
+| | |____46
+| | | |____3e7a55d7ee1b2f682e8b74ec1f7069a0cbd9e1
+| | |____47
+| | | |____197902024d17e56c41106c1a7754d2376f476a
+| | |____49
+| | | |____db0418649c78c5f145a0c9b8b3f37f2e63c103
+| | |____4a
+| | | |____15863e0d28d99c280c7f3d16c4631abb705f46
+| | |____4e
+| | | |____5734f3409bc57b60294a056b1f4dc30542b0cb
+| | | |____9f8271c9879f43729f921e83506d3c57590c94
+| | |____4f
+| | | |____d93ac92c1c4fb4370651b174a886eee5b3da20
+| | |____50
+| | | |____1c0bcdd34b6246c538d872215ae88fed02ea10
+| | |____51
+| | | |____90b865a0853e0666bfcacf26bc657c53a602df
+| | | |____cfbcddcbe904478a330101bd946d4aa38ca211
+| | |____53
+| | | |____c6f65a076f1b721bab492a3e24f87c449f97d9
+| | | |____e96095582a8e778e693aab8fcf9c03e609adb0
+| | |____56
+| | | |____458eccbc1f79a5dc5cdee99fbd55678ccd9c05
+| | | |____f3395c267d19c7a3f2a45ba5ed50f79c0a8d7d
+| | |____57
+| | | |____1beb23b5771f3edf3b8cb9eeb83587b91180c5
+| | |____59
+| | | |____b2fda49c9b78273d906fbb7ab34a287604ca89
+| | |____5c
+| | | |____45552e20b739363fa6dd46db541633b63608fc
+| | | |____efa83090b385e40f037840ba0f1f9ffbc246f0
+| | |____61
+| | | |____a0f24501f793854cfb74f86c602e3b8fef025a
+| | |____62
+| | | |____693680f9e30f064cd0c2a549b180fdce372aeb
+| | |____63
+| | | |____5504825c0840a95d59ba51a5346074520fa785
+| | |____64
+| | | |____d02da3dca50e8beb0ee3068291fb2ddb3c9345
+| | | |____de582cdb2c88475bd451d8de1474c558720471
+| | |____65
+| | | |____0f3c23db8139b924daf8cc0337ec19710fcd2c
+| | | |____439d9a393602bef31f5a4a6dd2aaeb99528776
+| | | |____bf3ecc403bb84678275812f8e3f61374a247bb
+| | |____66
+| | | |____00aa1d330fe233b793e6e2aec52e799500ff2f
+| | |____67
+| | | |____d775f2cacad9f99a47007a0b8f59e6495de356
+| | |____69
+| | | |____81e13e68b03734766bd788ef66c1f9f104c1b8
+| | | |____a2a9cc89fe7975a7122b00fab1b953769de7a7
+| | | |____f880cd7eecb01627eb3cbde872fb9d75dc2f4e
+| | |____6c
+| | | |____7335d092a7c4663bfdf116f08aa1be388d19d4
+| | |____70
+| | | |____95da7e02301c2f8ec05a8c3805507954462092
+| | |____72
+| | | |____d3a9753ba3be7e533094f81fabde2633ad0789
+| | |____74
+| | | |____49bb32da265775667467eb5782502ef812f9ee
+| | | |____64c80ffbeca2799905dfab4502751c0ae938e2
+| | |____75
+| | | |____558e7b562cab9fe5669dc950cfd23561af7759
+| | |____77
+| | | |____2e2f4637d4a5c4e6671283432ebe86453093a1
+| | |____7a
+| | | |____9fcf864a87d2ec7359e91572607784ff5fff95
+| | |____7b
+| | | |____6645e3441d3f3b694be65631f9da429d6cebf5
+| | | |____e4c43ddfb98adc7d1bff7c4c3267c738c191e8
+| | |____7c
+| | | |____4ae873f287215a59db1f97c32adb40c02fbeba
+| | |____7d
+| | | |____8ef4ed7f486caf3e53d8846ce1ff487a42299f
+| | |____7e
+| | | |____bce288e5d0dad28ef21fb9493c3bfdafd8f3af
+| | |____7f
+| | | |____f2ac10bec973201b76ec58b83df48da422a8ee
+| | |____81
+| | | |____8b07f1ff1b10d817c777f5021aafc067283034
+| | |____82
+| | | |____8298e2a84fcfb0db5f279f0981b88b7c9a6579
+| | |____83
+| | | |____c6a062fa522585806195d21843b23ba7d9e58d
+| | |____84
+| | | |____c6e18e9d22bd96ba2ec93f1492605ae648bc6d
+| | |____85
+| | | |____92e478280070eca5d39a72abd639c8e93d6455
+| | | |____db003a0e722322bc7ff17835e35dd674dcc95b
+| | |____86
+| | | |____1bfdb4c2501e14781bd6caf2d619d8e27f1e34
+| | |____87
+| | | |____e092b5da33276fac325ace46b54a7adc79a26d
+| | |____88
+| | | |____ac03181ced712b485e388df7038ead6e103c8b
+| | |____8a
+| | | |____3ad34fe569357cd9ddbe9bd9b78adb2a5bb453
+| | | |____785f061dab11bed21e9f8fccd0c3ba7fd65c6b
+| | |____8b
+| | | |____0b3bb18e18b0780819832232b7f343f5a80dc5
+| | | |____246f1734316ef41e338126deb9196e9326ddba
+| | |____8d
+| | | |____83d6b1b9cb7797eb08f58a8780ab4c64cb98f8
+| | |____8e
+| | | |____9f42885a0f55002dbca3ba8ed03ea216312f51
+| | |____8f
+| | | |____069b8162ad1be5edff6be9f0f4752681e58223
+| | | |____43d76b1d00a425a9a612e2d7e33e7f40c5b14d
+| | |____91
+| | | |____b28df011a433fdd70898ef68f766412e914878
+| | | |____c83dfe2d432264cf12ef8a02aaf17e6440ad83
+| | |____92
+| | | |____21440efe937c0dbf49dbc4177956ccd9457994
+| | | |____7d7cca0badb13577152bf8753ce3552358f53b
+| | |____94
+| | | |____7152d835e14600a7f0f40cc144df9a5ee3dcda
+| | | |____76e88d0536c4be88ab13971b96c354a8e12689
+| | |____95
+| | | |____f25969a30c9cfb31f425b573db11b9bcdaf36b
+| | |____97
+| | | |____b95b9a6906cf4b4c86ee1cee5a0ac624af215b
+| | |____98
+| | | |____e79459703691557582a0fc4d9a757690f90375
+| | |____99
+| | | |____97fde08935cd6be886293333c3fae96023cdaa
+| | |____9a
+| | | |____bb02f95a078aa5fefeb9c052e85ee6a046652c
+| | |____9c
+| | | |____16456d76e8ea89017eeb98bf9f66642743373e
+| | |____a1
+| | | |____51ce5b857d4abdc425481b8e9a3c671cede342
+| | |____a2
+| | | |____0502b7f06d848452da0d93ce8830c1d86b05dd
+| | |____a3
+| | | |____f81b912234389e323c95a8f70ac97c30241133
+| | |____a8
+| | | |____8424d49fb18df48c8324899de7aa561de12223
+| | |____aa
+| | | |____3f4c21f10c162190b8af2324c0dcf7772c6b88
+| | | |____95b68e88ce9d1e8268dbec76313368c8f7d639
+| | |____ac
+| | | |____70abe96a9dd5eff78dd8ccc6dea14c4d986da4
+| | |____b0
+| | | |____c53fbf27454495ab6a7cfa59ecb3f4ff7f9702
+| | |____b1
+| | | |____0b00c80d0feffd2d504ef402f40b599c24a6d5
+| | | |____c3564d98fc2ed6cbf4cd71c5324febacd01000
+| | |____b2
+| | | |____d7bd9e62510ee80929b44c161e77a56f8f6077
+| | |____b3
+| | | |____845e122b3886725e99b9759f392804c8288b24
+| | | |____c681ce021cc932986cc6620a040d46d6d16289
+| | | |____d1a31a4245a6ebf1fb570929f85b777794cb63
+| | |____b4
+| | | |____0fce9cf1504a1e4d05aa8538c86ead4fdbb702
+| | |____b7
+| | | |____11e8d87ec4c850b87cd2924d3a088637730796
+| | |____b8
+| | | |____63a6e80966ca457feba6ce73a91e1edd8bf8ca
+| | |____bf
+| | | |____dacbe9d9480e4e6146b5f03d5e6445464dcdcb
+| | |____c1
+| | | |____31389aa0b6eb41645a51861293c2d0d8b5253d
+| | |____c2
+| | | |____bb5fef0c2f1168fca73d959af50886b0842f37
+| | |____c3
+| | | |____9cd4bc4c049a1848c5cf7f3ac8dd59bbddaecc
+| | |____c5
+| | | |____51175fef8d646449d703b3d0231729e0ca507d
+| | | |____72c79a665bec5b1b30da9529bad7826a64dc44
+| | | |____d491a922476a06a318c6fff03530a0def0a108
+| | |____c6
+| | | |____0ac7a17edfa911c92fcb6942e0f062069fb81b
+| | |____c9
+| | | |____2ebcea10b0be7228c1da8cf1b55bd6abf8659a
+| | | |____ac15bbebb6fe7de94182b4d2e407d988bae0da
+| | | |____d215d0efb5a0c3b9eb50791e4f2a5989b283ae
+| | |____ca
+| | | |____c9692ccfc337c7cef8228c5d959bc715d79ac4
+| | |____cb
+| | | |____1db76a2f03f3753ed28cece9458d7f44db7281
+| | |____cd
+| | | |____0b42c758583399448133167295d4f76daff3e4
+| | |____d0
+| | | |____1ffec2eccb965336576cab33d41aee07c055ca
+| | |____d2
+| | | |____2f3890a380cea30641cfecc329b5c794ef5fb2
+| | |____d4
+| | | |____b75783eeb1b17d2ffb79975807852f4e0ebf94
+| | |____d5
+| | | |____a3f10671733c0fad52fbc1d20bc8223a1ce87e
+| | |____d7
+| | | |____fca74af932aaa1fd9f800bd7e3566b173f5e69
+| | |____d8
+| | | |____8209b7d9f9b66015cc312093a80ac874afb63c
+| | |____da
+| | | |____24eaa8b23d24f6746e3d6e64e4af2124bc5a20
+| | | |____7b02605a9f568a8f8ec9b8aa8728ab5e088bf6
+| | |____db
+| | | |____ebafab79aca9c2f511648fb46e6da18cd2ece7
+| | |____dd
+| | | |____edd0473a16af1d71a1ceb2049b1694a5699b2c
+| | |____df
+| | | |____f0287de6ad8e9f6feb6c595714ecc2a864243d
+| | |____e1
+| | | |____08e7a8cef09f527edd832afd540ae77ff990c7
+| | |____e2
+| | | |____15040eeb2c210d88b668bf03333226a1778c76
+| | |____e3
+| | | |____0d9f97074ee2b19cc07d2965ef3919e224a6a3
+| | | |____28f5105e05dcc632f3964b516448826ab0cc25
+| | |____e4
+| | | |____1cfb40938fd86e7a9529070ea9937acedce978
+| | | |____63f4807d1bd82dea32a5bf363bdd0ca34b6186
+| | | |____edba86a8188b114ddd55f0a2f3ec560091d665
+| | |____e5
+| | | |____a788a7af8fecc0478ef418b8e95c2cf2bbffdf
+| | |____e8
+| | | |____f12d3f8b7b3956981710b8be9967822f33f108
+| | |____e9
+| | | |____3ccfe6dfc65e445de8c30de3642e2795d7041b
+| | | |____d912f3e3cefc18505d3cd19b3a5a9f567f5de0
+| | |____ea
+| | | |____607ad25efeac6709f310ff306cabed2ef9ee26
+| | | |____cfb92323c59791c8a546ee2137ad0005be72d9
+| | |____eb
+| | | |____2a41dd16282532d3a960f1ac2e6207323c2c14
+| | |____ed
+| | | |____f38fcde25c4a411c601917d7e724cd0e1cb44e
+| | |____f1
+| | | |____efae5448b6213d8bf9887df553cbeb9fd89174
+| | |____f2
+| | | |____a5da6091cc2c1f4d7d266579a6aa759d7f7209
+| | | |____d1b6d15cfd74dbfa78920b94bb232c3081b46b
+| | |____f3
+| | | |____01e99f9a15b6d8254f0502d6b2182000c43194
+| | | |____43fa3607ff3d1c8fc8598ac8c34af9282e0c38
+| | |____f4
+| | | |____cc441b2ab9423ad0e392e5c5d06bf73f7a1053
+| | |____f6
+| | | |____69f99cfef16678e3cf1415be18178c3ccca782
+| | | |____aa2a5c08974eda41e69fd40627335e6a4b587b
+| | |____f8
+| | | |____c353d36fe543e2671b2f934634523a37e60f72
+| | |____fb
+| | | |____fef843284d0d28a62ec4436af7ff7911189aad
+| | |____fd
+| | | |____3dbb571a12a1c3baf000db049e141c888d05a8
+| | |____fe
+| | | |____7813821872cc23dd10b30c2992e5cb06767359
+| | |____info
+| | |____pack
+| |____ORIG_HEAD
+| |____refs
+| | |____heads
+| | | |____dev
+| | |____remotes
+| | | |____origin
+| | | | |____dev
+| | |____tags
+|____.gitignore
+|____backend
+| |____.env
+| |____.env.example
+| |____.prettierrc
+| |____dist
+| | |____answer-sheets
+| | | |____answer-sheet.controller.d.ts
+| | | |____answer-sheet.controller.js
+| | | |____answer-sheet.controller.js.map
+| | | |____answer-sheet.module.d.ts
+| | | |____answer-sheet.module.js
+| | | |____answer-sheet.module.js.map
+| | | |____answer-sheet.service.d.ts
+| | | |____answer-sheet.service.js
+| | | |____answer-sheet.service.js.map
+| | | |____dto
+| | | | |____upload-answer-sheet.dto.d.ts
+| | | | |____upload-answer-sheet.dto.js
+| | | | |____upload-answer-sheet.dto.js.map
+| | |____app.controller.d.ts
+| | |____app.controller.js
+| | |____app.controller.js.map
+| | |____app.module.d.ts
+| | |____app.module.js
+| | |____app.module.js.map
+| | |____app.service.d.ts
+| | |____app.service.js
+| | |____app.service.js.map
+| | |____auth
+| | | |____auth.controller.d.ts
+| | | |____auth.controller.js
+| | | |____auth.controller.js.map
+| | | |____auth.module.d.ts
+| | | |____auth.module.js
+| | | |____auth.module.js.map
+| | | |____auth.service.d.ts
+| | | |____auth.service.js
+| | | |____auth.service.js.map
+| | | |____decorators
+| | | | |____public.decorator.d.ts
+| | | | |____public.decorator.js
+| | | | |____public.decorator.js.map
+| | | | |____roles.decorator.d.ts
+| | | | |____roles.decorator.js
+| | | | |____roles.decorator.js.map
+| | | |____dto
+| | | | |____login.dto.d.ts
+| | | | |____login.dto.js
+| | | | |____login.dto.js.map
+| | | | |____refresh-token.dto.d.ts
+| | | | |____refresh-token.dto.js
+| | | | |____refresh-token.dto.js.map
+| | | | |____register.dto.d.ts
+| | | | |____register.dto.js
+| | | | |____register.dto.js.map
+| | | |____guards
+| | | | |____jwt-auth.guard.d.ts
+| | | | |____jwt-auth.guard.js
+| | | | |____jwt-auth.guard.js.map
+| | | | |____roles.guard.d.ts
+| | | | |____roles.guard.js
+| | | | |____roles.guard.js.map
+| | | |____strategies
+| | | | |____jwt.strategy.d.ts
+| | | | |____jwt.strategy.js
+| | | | |____jwt.strategy.js.map
+| | |____boards
+| | | |____board.controller.d.ts
+| | | |____board.controller.js
+| | | |____board.controller.js.map
+| | | |____board.module.d.ts
+| | | |____board.module.js
+| | | |____board.module.js.map
+| | |____common
+| | | |____decorators
+| | | | |____tenant.decorator.d.ts
+| | | | |____tenant.decorator.js
+| | | | |____tenant.decorator.js.map
+| | | |____middleware
+| | | | |____tenant-context.middleware.d.ts
+| | | | |____tenant-context.middleware.js
+| | | | |____tenant-context.middleware.js.map
+| | |____config
+| | | |____upload.config.d.ts
+| | | |____upload.config.js
+| | | |____upload.config.js.map
+| | |____main.d.ts
+| | |____main.js
+| | |____main.js.map
+| | |____ocr
+| | | |____ocr.module.d.ts
+| | | |____ocr.module.js
+| | | |____ocr.module.js.map
+| | | |____ocr.processor.d.ts
+| | | |____ocr.processor.js
+| | | |____ocr.processor.js.map
+| | | |____ocr.service.d.ts
+| | | |____ocr.service.js
+| | | |____ocr.service.js.map
+| | | |____paddle_ocr_temp.py
+| | |____pdf
+| | | |____pdf.module.d.ts
+| | | |____pdf.module.js
+| | | |____pdf.module.js.map
+| | | |____pdf.service.d.ts
+| | | |____pdf.service.js
+| | | |____pdf.service.js.map
+| | |____prisma
+| | | |____prisma.module.d.ts
+| | | |____prisma.module.js
+| | | |____prisma.module.js.map
+| | | |____prisma.service.d.ts
+| | | |____prisma.service.js
+| | | |____prisma.service.js.map
+| | |____queue
+| | | |____queue.module.d.ts
+| | | |____queue.module.js
+| | | |____queue.module.js.map
+| | |____subjects
+| | | |____subject.controller.d.ts
+| | | |____subject.controller.js
+| | | |____subject.controller.js.map
+| | | |____subject.module.d.ts
+| | | |____subject.module.js
+| | | |____subject.module.js.map
+| | |____tsconfig.build.tsbuildinfo
+| |____eng.traineddata
+| |____error.log
+| |____eslint.config.mjs
+| |____nest-cli.json
+| |____package.json
+| |____prisma
+| | |____migrations
+| | | |____20260111201034_init
+| | | | |____migration.sql
+| | | |____20260111210507_add_file_fields_to_answer_sheet
+| | | | |____migration.sql
+| | | |____20260112014457_make_subjectid_optional
+| | | | |____migration.sql
+| | | |____20260112020551_add_subject_code_and_syllabus
+| | | | |____migration.sql
+| | | |____migration_lock.toml
+| | |____schema.prisma
+| | |____seed-subjects.js
+| | |____seed.js
+| | |____seed.ts
+| | |____verify-user.js
+| |____README.md
+| |____src
+| | |____answer-sheets
+| | | |____answer-sheet.controller.ts
+| | | |____answer-sheet.module.ts
+| | | |____answer-sheet.service.ts
+| | | |____dto
+| | | | |____upload-answer-sheet.dto.ts
+| | |____app.controller.spec.ts
+| | |____app.controller.ts
+| | |____app.module.ts
+| | |____app.service.ts
+| | |____auth
+| | | |____auth.controller.ts
+| | | |____auth.module.ts
+| | | |____auth.service.ts
+| | | |____decorators
+| | | | |____public.decorator.ts
+| | | | |____roles.decorator.ts
+| | | |____dto
+| | | | |____login.dto.ts
+| | | | |____refresh-token.dto.ts
+| | | | |____register.dto.ts
+| | | |____guards
+| | | | |____jwt-auth.guard.ts
+| | | | |____roles.guard.ts
+| | | |____strategies
+| | | | |____jwt.strategy.ts
+| | |____boards
+| | | |____board.controller.ts
+| | | |____board.module.ts
+| | |____common
+| | | |____decorators
+| | | | |____tenant.decorator.ts
+| | | |____middleware
+| | | | |____tenant-context.middleware.ts
+| | |____config
+| | | |____upload.config.ts
+| | |____main.ts
+| | |____ocr
+| | | |____ocr.module.ts
+| | | |____ocr.processor.ts
+| | | |____ocr.service.ts
+| | |____pdf
+| | | |____pdf.module.ts
+| | | |____pdf.service.ts
+| | |____prisma
+| | | |____prisma.module.ts
+| | | |____prisma.service.ts
+| | |____queue
+| | | |____queue.module.ts
+| | |____subjects
+| | | |____subject.controller.ts
+| | | |____subject.module.ts
+| |____test
+| | |____app.e2e-spec.ts
+| | |____auth.e2e-spec.ts
+| | |____jest-e2e.json
+| |____test-api.ps1
+| |____test-api.sh
+| |____tsconfig.build.json
+| |____tsconfig.json
+| |____uploads
+| | |____answer-sheets
+| | | |____1768167540840-691295838.png
+| | | |____1768175553807-824140633.pdf
+| | | |____1768175750798-75402859.pdf
+| | | |____1768283931115-785000461.pdf
+| | | |____1768285906544-949078759.pdf
+| | | |____pages
+| |____yarn.lock
+|____docker-compose.yml
+|____docs
+| |____implementation_plan.md
+| |____multi-tenancy.md
+| |____task.md
+|____frontend
+| |____.gitignore
+| |____.next
+| | |____app-build-manifest.json
+| | |____build-manifest.json
+| | |____cache
+| | | |____.previewinfo
+| | | |____.rscinfo
+| | | |____.tsbuildinfo
+| | | |____swc
+| | | | |____plugins
+| | | | | |____v7_windows_x86_64_0.102.1
+| | | | | |____v7_windows_x86_64_0.106.15
+| | | |____webpack
+| | | | |____client-development
+| | | | | |____0.pack.gz
+| | | | | |____1.pack.gz
+| | | | | |____10.pack.gz
+| | | | | |____11.pack.gz
+| | | | | |____12.pack.gz
+| | | | | |____13.pack.gz
+| | | | | |____14.pack.gz
+| | | | | |____15.pack.gz
+| | | | | |____16.pack.gz
+| | | | | |____17.pack.gz
+| | | | | |____18.pack.gz
+| | | | | |____19.pack.gz
+| | | | | |____2.pack.gz
+| | | | | |____20.pack.gz
+| | | | | |____21.pack.gz
+| | | | | |____3.pack.gz
+| | | | | |____4.pack.gz
+| | | | | |____5.pack.gz
+| | | | | |____6.pack.gz
+| | | | | |____7.pack.gz
+| | | | | |____8.pack.gz
+| | | | | |____9.pack.gz
+| | | | | |____index.pack.gz
+| | | | | |____index.pack.gz.old
+| | | | |____client-development-fallback
+| | | | | |____0.pack.gz
+| | | | | |____index.pack.gz
+| | | | | |____index.pack.gz.old
+| | | | |____client-production
+| | | | | |____0.pack
+| | | | | |____1.pack
+| | | | | |____2.pack
+| | | | | |____index.pack
+| | | | | |____index.pack.old
+| | | | |____edge-server-production
+| | | | | |____0.pack
+| | | | | |____index.pack
+| | | | |____server-development
+| | | | | |____0.pack.gz
+| | | | | |____1.pack.gz
+| | | | | |____10.pack.gz
+| | | | | |____11.pack.gz
+| | | | | |____12.pack.gz
+| | | | | |____13.pack.gz
+| | | | | |____14.pack.gz
+| | | | | |____15.pack.gz
+| | | | | |____16.pack.gz
+| | | | | |____17.pack.gz
+| | | | | |____2.pack.gz
+| | | | | |____3.pack.gz
+| | | | | |____4.pack.gz
+| | | | | |____5.pack.gz
+| | | | | |____6.pack.gz
+| | | | | |____7.pack.gz
+| | | | | |____8.pack.gz
+| | | | | |____9.pack.gz
+| | | | | |____index.pack.gz
+| | | | | |____index.pack.gz.old
+| | | | |____server-production
+| | | | | |____0.pack
+| | | | | |____1.pack
+| | | | | |____2.pack
+| | | | | |____index.pack
+| | | | | |____index.pack.old
+| | |____package.json
+| | |____react-loadable-manifest.json
+| | |____server
+| | | |____app
+| | | | |____dashboard
+| | | | | |____page.js
+| | | | | |____page_client-reference-manifest.js
+| | | | |____login
+| | | | | |____page.js
+| | | | | |____page_client-reference-manifest.js
+| | | | |____page.js
+| | | | |____page_client-reference-manifest.js
+| | | | |____student
+| | | | | |____answer-sheets
+| | | | | | |____page.js
+| | | | | | |____page_client-reference-manifest.js
+| | | | | |____page.js
+| | | | | |____page_client-reference-manifest.js
+| | | | | |____upload
+| | | | | | |____page.js
+| | | | | | |____page_client-reference-manifest.js
+| | | |____app-paths-manifest.json
+| | | |____interception-route-rewrite-manifest.js
+| | | |____middleware-build-manifest.js
+| | | |____middleware-manifest.json
+| | | |____middleware-react-loadable-manifest.js
+| | | |____next-font-manifest.js
+| | | |____next-font-manifest.json
+| | | |____pages-manifest.json
+| | | |____server-reference-manifest.js
+| | | |____server-reference-manifest.json
+| | | |____vendor-chunks
+| | | | |____@babel.js
+| | | | |____@swc.js
+| | | | |____@tanstack.js
+| | | | |____@ungap.js
+| | | | |____asynckit.js
+| | | | |____attr-accept.js
+| | | | |____axios.js
+| | | | |____bail.js
+| | | | |____call-bind-apply-helpers.js
+| | | | |____character-entities.js
+| | | | |____character-reference-invalid.js
+| | | | |____combined-stream.js
+| | | | |____comma-separated-tokens.js
+| | | | |____debug.js
+| | | | |____decode-named-character-reference.js
+| | | | |____delayed-stream.js
+| | | | |____dequal.js
+| | | | |____devlop.js
+| | | | |____dunder-proto.js
+| | | | |____es-define-property.js
+| | | | |____es-errors.js
+| | | | |____es-object-atoms.js
+| | | | |____es-set-tostringtag.js
+| | | | |____estree-util-is-identifier-name.js
+| | | | |____extend.js
+| | | | |____file-selector.js
+| | | | |____follow-redirects.js
+| | | | |____form-data.js
+| | | | |____framer-motion.js
+| | | | |____function-bind.js
+| | | | |____get-intrinsic.js
+| | | | |____get-proto.js
+| | | | |____goober.js
+| | | | |____gopd.js
+| | | | |____has-flag.js
+| | | | |____has-symbols.js
+| | | | |____has-tostringtag.js
+| | | | |____hasown.js
+| | | | |____hast-util-parse-selector.js
+| | | | |____hast-util-to-jsx-runtime.js
+| | | | |____hast-util-whitespace.js
+| | | | |____hastscript.js
+| | | | |____html-url-attributes.js
+| | | | |____inline-style-parser.js
+| | | | |____is-alphabetical.js
+| | | | |____is-alphanumerical.js
+| | | | |____is-decimal.js
+| | | | |____is-hexadecimal.js
+| | | | |____is-plain-obj.js
+| | | | |____js-cookie.js
+| | | | |____lucide-react.js
+| | | | |____math-intrinsics.js
+| | | | |____mdast-util-from-markdown.js
+| | | | |____mdast-util-to-hast.js
+| | | | |____mdast-util-to-string.js
+| | | | |____micromark-core-commonmark.js
+| | | | |____micromark-factory-destination.js
+| | | | |____micromark-factory-label.js
+| | | | |____micromark-factory-space.js
+| | | | |____micromark-factory-title.js
+| | | | |____micromark-factory-whitespace.js
+| | | | |____micromark-util-character.js
+| | | | |____micromark-util-chunked.js
+| | | | |____micromark-util-classify-character.js
+| | | | |____micromark-util-combine-extensions.js
+| | | | |____micromark-util-decode-numeric-character-reference.js
+| | | | |____micromark-util-decode-string.js
+| | | | |____micromark-util-encode.js
+| | | | |____micromark-util-html-tag-name.js
+| | | | |____micromark-util-normalize-identifier.js
+| | | | |____micromark-util-resolve-all.js
+| | | | |____micromark-util-sanitize-uri.js
+| | | | |____micromark-util-subtokenize.js
+| | | | |____micromark-util-symbol.js
+| | | | |____micromark.js
+| | | | |____mime-db.js
+| | | | |____mime-types.js
+| | | | |____motion-dom.js
+| | | | |____motion-utils.js
+| | | | |____ms.js
+| | | | |____next.js
+| | | | |____object-assign.js
+| | | | |____parse-entities.js
+| | | | |____prop-types.js
+| | | | |____property-information.js
+| | | | |____proxy-from-env.js
+| | | | |____react-dropzone.js
+| | | | |____react-hook-form.js
+| | | | |____react-hot-toast.js
+| | | | |____react-is.js
+| | | | |____react-markdown.js
+| | | | |____react-syntax-highlighter.js
+| | | | |____refractor.js
+| | | | |____remark-parse.js
+| | | | |____remark-rehype.js
+| | | | |____space-separated-tokens.js
+| | | | |____style-to-js.js
+| | | | |____style-to-object.js
+| | | | |____supports-color.js
+| | | | |____trim-lines.js
+| | | | |____trough.js
+| | | | |____tslib.js
+| | | | |____unified.js
+| | | | |____unist-util-is.js
+| | | | |____unist-util-position.js
+| | | | |____unist-util-stringify-position.js
+| | | | |____unist-util-visit-parents.js
+| | | | |____unist-util-visit.js
+| | | | |____vfile-message.js
+| | | | |____vfile.js
+| | | | |____xtend.js
+| | | |____webpack-runtime.js
+| | |____static
+| | | |____chunks
+| | | | |____app
+| | | | | |____dashboard
+| | | | | | |____page.js
+| | | | | |____error.js
+| | | | | |____layout.js
+| | | | | |____login
+| | | | | | |____page.js
+| | | | | |____not-found.js
+| | | | | |____page.js
+| | | | | |____student
+| | | | | | |____answer-sheets
+| | | | | | | |____page.js
+| | | | | | |____page.js
+| | | | | | |____upload
+| | | | | | | |____page.js
+| | | | |____app-pages-internals.js
+| | | | |____main-app.js
+| | | | |____polyfills.js
+| | | | |____webpack.js
+| | | | |_____app-pages-browser_node_modules_tanstack_query-devtools_build_DevtoolsComponent_CDWEKZTF_js.js
+| | | | |_____app-pages-browser_node_modules_tanstack_query-devtools_build_DevtoolsPanelComponent_5A54IY5X_js.js
+| | | |____css
+| | | | |____app
+| | | | | |____layout.css
+| | | |____development
+| | | | |_____buildManifest.js
+| | | | |_____ssgManifest.js
+| | | |____media
+| | | | |____19cfc7226ec3afaa-s.woff2
+| | | | |____21350d82a1f187e9-s.woff2
+| | | | |____8e9860b6e62d6359-s.woff2
+| | | | |____ba9851c3c22cd980-s.woff2
+| | | | |____c5fe6dc8356a8c31-s.woff2
+| | | | |____df0a9ae256c0569c-s.woff2
+| | | | |____e4af272ccee01ff0-s.p.woff2
+| | | |____webpack
+| | | | |____161a3a602dbf54be.webpack.hot-update.json
+| | | | |____2731e741f7e22fa4.webpack.hot-update.json
+| | | | |____480ccd3c8e4cec69.webpack.hot-update.json
+| | | | |____4e1912bde438cdfe.webpack.hot-update.json
+| | | | |____633457081244afec._.hot-update.json
+| | | | |____8abb117fd4cc3843.webpack.hot-update.json
+| | | | |____92e5e4a626894a6a.webpack.hot-update.json
+| | | | |____94a60e6d58d3f054.webpack.hot-update.json
+| | | | |____a3ffa4aeefe9812c.webpack.hot-update.json
+| | | | |____app
+| | | | | |____layout.161a3a602dbf54be.hot-update.js
+| | | | | |____layout.2731e741f7e22fa4.hot-update.js
+| | | | | |____layout.8abb117fd4cc3843.hot-update.js
+| | | | | |____layout.92e5e4a626894a6a.hot-update.js
+| | | | | |____layout.94a60e6d58d3f054.hot-update.js
+| | | | | |____login
+| | | | | | |____page.92e5e4a626894a6a.hot-update.js
+| | | | |____df4a4bc501ff4043.webpack.hot-update.json
+| | | | |____webpack.161a3a602dbf54be.hot-update.js
+| | | | |____webpack.2731e741f7e22fa4.hot-update.js
+| | | | |____webpack.480ccd3c8e4cec69.hot-update.js
+| | | | |____webpack.4e1912bde438cdfe.hot-update.js
+| | | | |____webpack.8abb117fd4cc3843.hot-update.js
+| | | | |____webpack.92e5e4a626894a6a.hot-update.js
+| | | | |____webpack.94a60e6d58d3f054.hot-update.js
+| | | | |____webpack.a3ffa4aeefe9812c.hot-update.js
+| | | | |____webpack.df4a4bc501ff4043.hot-update.js
+| | |____trace
+| | |____types
+| | | |____app
+| | | | |____dashboard
+| | | | | |____page.ts
+| | | | |____layout.ts
+| | | | |____login
+| | | | | |____page.ts
+| | | | |____page.ts
+| | | | |____student
+| | | | | |____answer-sheets
+| | | | | | |____page.ts
+| | | | | |____page.ts
+| | | | | |____upload
+| | | | | | |____page.ts
+| | | |____package.json
+| |____next-env.d.ts
+| |____next.config.mjs
+| |____package.json
+| |____postcss.config.mjs
+| |____README.md
+| |____src
+| | |____app
+| | | |____api
+| | | | |____documents
+| | | | | |____implementation-plan
+| | | | | | |____route.ts
+| | | | | |____task-list
+| | | | | | |____route.ts
+| | | |____dashboard
+| | | | |____answer-sheets
+| | | | | |____page.tsx
+| | | | |____boards
+| | | | | |____page.tsx
+| | | | |____page.tsx
+| | | | |____subjects
+| | | | | |____page.tsx
+| | | | |____upload
+| | | | | |____page.tsx
+| | | |____error.tsx
+| | | |____globals.css
+| | | |____layout.tsx
+| | | |____login
+| | | | |____page.tsx
+| | | |____not-found.tsx
+| | | |____page.tsx
+| | | |____register
+| | | | |____page.tsx
+| | | |____student
+| | | | |____answer-sheets
+| | | | | |____page.tsx
+| | | | |____page.tsx
+| | | | |____upload
+| | | | | |____page.tsx
+| | |____components
+| | | |____layout
+| | | | |____DashboardLayout.tsx
+| | | |____ui
+| | | | |____Button.tsx
+| | | | |____Card.tsx
+| | | | |____Input.tsx
+| | | | |____Modal.tsx
+| | |____context
+| | | |____AuthContext.tsx
+| | |____hooks
+| | | |____useAnswerSheets.ts
+| | | |____useSubjects.ts
+| | | |____useUser.ts
+| | |____lib
+| | | |____api.ts
+| | |____providers
+| | | |____QueryProvider.tsx
+| |____tailwind.config.ts
+| |____tsconfig.json
+| |____yarn.lock
+|____package.json
+|____README.md
+|____tree.txt
+|____yarn.lock
