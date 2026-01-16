@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = (token: string, refreshToken: string, userData: User) => {
-    Cookies.set("accessToken", token, { expires: 1/96 }); // 15 mins
+    Cookies.set("accessToken", token, { expires: 1 / 96 }); // 15 mins
     Cookies.set("refreshToken", refreshToken, { expires: 7 });
     Cookies.set("user", JSON.stringify(userData), { expires: 7 });
     setUser(userData);
@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     Cookies.remove("refreshToken");
     Cookies.remove("user");
     setUser(null);
-    router.push("/login");
+    window.location.href = "/";
   };
 
   return (

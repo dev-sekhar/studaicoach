@@ -66,14 +66,10 @@ export class OcrProcessor {
             const analysis = await this.prisma.answerSheetAnalysis.create({
                 data: {
                     answerSheetId,
-                    extractedText: {
-                        pages: ocrResults,
-                        avgConfidence,
-                        isTrustworthy,
-                    } as any, // Cast to any for Prisma JSON field
+                    extractedText: ocrResults.map(p => p.text).join('\n\n'),
                     identifiedTopics: [],
-                    evaluation: {},
-                    recommendations: {},
+                    evaluation: "",
+                    recommendations: "",
                     processedAt: new Date(),
                     processingTimeMs: Date.now() - job.timestamp,
                 },
@@ -107,10 +103,30 @@ export class OcrProcessor {
             }
             console.error('❌ ========================================');
 
-            // Update status to FAILED
+            // Extract user-friendly error message
+            let errorMessage = 'OCR processing failed';
+            if (error.message) {
+                // Extract the main error from Gemini/Python errors
+                if (error.message.includes('quota exceeded')) {
+                    errorMessage = 'API quota exceeded. Please wait and try again.';
+                } else if (error.message.includes('404') || error.message.includes('not found')) {
+                    errorMessage = 'OCR model not available. Please contact support.';
+                } else if (error.message.includes('GEMINI_API_KEY')) {
+                    errorMessage = 'API key not configured. Please contact administrator.';
+                } else {
+                    // Try to extract first line of error
+                    const firstLine = error.message.split('\n')[0];
+                    errorMessage = firstLine.substring(0, 200); // Limit length
+                }
+            }
+
+            // Update status to FAILED with error message
             await this.prisma.answerSheet.update({
                 where: { id: answerSheetId },
-                data: { processingStatus: 'FAILED' },
+                data: {
+                    processingStatus: 'FAILED',
+                    notes: `OCR Error: ${errorMessage}`
+                },
             });
 
             throw error;

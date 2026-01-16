@@ -5,6 +5,7 @@ import { useDropzone } from "react-dropzone";
 import { motion } from "framer-motion";
 import { Upload, X, File as FileIcon } from "lucide-react";
 import { api } from "@/lib/api";
+import { useSubjects } from "@/hooks/useSubjects";
 import { Button } from "@/components/ui/Button";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
@@ -15,33 +16,18 @@ export default function StudentUploadPage() {
     const [grade, setGrade] = useState('10');
     const [board, setBoard] = useState('CBSE');
     const [subjectId, setSubjectId] = useState('');
-    const [subjects, setSubjects] = useState<any[]>([]);
     const [isUploading, setIsUploading] = useState(false);
     const router = useRouter();
 
-    // Fetch subjects when grade or board changes
+    // Fetch subjects using React Query hook (cached, deduplicated)
+    const { data: subjects = [], isLoading: isLoadingSubjects } = useSubjects({ board, grade });
+
+    // Set default subject when subjects load
     useEffect(() => {
-        const fetchSubjects = async () => {
-            try {
-                console.log('🔍 Fetching subjects for:', { board, grade });
-                const res = await api.get(`/subjects?board=${board}&grade=${grade}`);
-                console.log('✅ Received subjects:', res.data);
-                setSubjects(res.data);
-                if (res.data.length > 0) {
-                    setSubjectId(res.data[0].id);
-                } else {
-                    setSubjectId('');
-                    console.warn('⚠️ No subjects found for', { board, grade });
-                }
-            } catch (error) {
-                console.error('❌ Failed to fetch subjects:', error);
-                toast.error('Failed to load subjects');
-            }
-        };
-        if (grade && board) {
-            fetchSubjects();
+        if (subjects.length > 0 && !subjectId) {
+            setSubjectId(subjects[0].id);
         }
-    }, [grade, board]);
+    }, [subjects, subjectId]);
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
         if (acceptedFiles?.length > 0) {
@@ -152,7 +138,7 @@ export default function StudentUploadPage() {
                             ) : (
                                 <>
                                     <option value="">Select a subject</option>
-                                    {subjects.map((subject) => (
+                                    {subjects.map((subject: any) => (
                                         <option key={subject.id} value={subject.id}>
                                             {subject.name}
                                         </option>

@@ -70,7 +70,7 @@ export default function LoginPage() {
                         StudAICoach
                     </h1>
                     <p className="text-slate-600 dark:text-slate-400 mt-2">
-                        Super Admin Dashboard
+                        Welcome Back
                     </p>
                 </div>
 
@@ -141,9 +141,7 @@ export default function LoginPage() {
                         </Link>
                     </div>
 
-                    <div className="mt-4 text-center text-sm text-slate-600 dark:text-slate-400">
-                        <p>Super Admin access only</p>
-                    </div>
+
                 </div>
             </div>
         </div>

@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { FileText, Loader2, RefreshCw, Trash2, Eye, CheckCircle, Clock, AlertCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
+import { useAnswerSheets, useDeleteAnswerSheet } from "@/hooks/useAnswerSheets";
 
 interface AnswerSheet {
     id: string;
@@ -15,36 +16,32 @@ interface AnswerSheet {
     uploadedAt: string;
     processingStatus: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
     mimeType: string;
+    notes?: string;
 }
 
 export default function StudentAnswerSheetsPage() {
-    const [answerSheets, setAnswerSheets] = useState<AnswerSheet[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const { user } = useAuth();
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
-    const fetchAnswerSheets = async () => {
-        setIsLoading(true);
-        try {
-            const response = await api.get("/answer-sheets");
-            setAnswerSheets(response.data);
-        } catch (error) {
-            toast.error("Failed to fetch answer sheets");
-        } finally {
-            setIsLoading(false);
+    // Calculate dynamic polling: if any sheet is PROCESSING, poll every 3s
+    const { data: answerSheets = [], isLoading, refetch } = useAnswerSheets(user?.id, {
+        refetchInterval: (query) => {
+            const data = query.state.data as AnswerSheet[];
+            if (data?.some(sheet => sheet.processingStatus === 'PROCESSING')) {
+                return 3000;
+            }
+            return false;
         }
-    };
+    });
 
-    useEffect(() => {
-        fetchAnswerSheets();
-    }, []);
+    const deleteMutation = useDeleteAnswerSheet();
 
     const handleDelete = async (id: string) => {
         if (!confirm("Are you sure you want to delete this answer sheet?")) return;
 
         setDeletingId(id);
         try {
-            await api.delete(`/answer-sheets/${id}`);
-            setAnswerSheets(prev => prev.filter(sheet => sheet.id !== id));
+            await deleteMutation.mutateAsync(id);
             toast.success("Answer sheet deleted");
         } catch (error) {
             toast.error("Failed to delete answer sheet");
@@ -91,7 +88,7 @@ export default function StudentAnswerSheetsPage() {
                             <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mb-2">My Answer Sheets</h1>
                             <p className="text-slate-600 dark:text-slate-400">View and manage your uploaded exams.</p>
                         </div>
-                        <Button onClick={fetchAnswerSheets} variant="secondary">
+                        <Button onClick={() => refetch()} variant="secondary">
                             <RefreshCw size={18} className="mr-2" />
                             Refresh
                         </Button>
@@ -115,7 +112,7 @@ export default function StudentAnswerSheetsPage() {
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 gap-4">
-                            {answerSheets.map((sheet) => (
+                            {answerSheets.map((sheet: AnswerSheet) => (
                                 <motion.div
                                     key={sheet.id}
                                     initial={{ opacity: 0, y: 10 }}
@@ -137,6 +134,11 @@ export default function StudentAnswerSheetsPage() {
                                                 <span>•</span>
                                                 <span>{new Date(sheet.uploadedAt).toLocaleDateString()}</span>
                                             </div>
+                                            {sheet.processingStatus === 'FAILED' && sheet.notes && (
+                                                <div className="mt-2 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded">
+                                                    {sheet.notes}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
@@ -144,9 +146,9 @@ export default function StudentAnswerSheetsPage() {
                                         {getStatusBadge(sheet.processingStatus)}
 
                                         <div className="flex items-center gap-2">
-                                            <button className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white" title="View Results">
+                                            <Link href={`/student/answer-sheets/${sheet.id}`} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white" title="View Results">
                                                 <Eye size={18} />
-                                            </button>
+                                            </Link>
                                             <button
                                                 onClick={() => handleDelete(sheet.id)}
                                                 disabled={deletingId === sheet.id}

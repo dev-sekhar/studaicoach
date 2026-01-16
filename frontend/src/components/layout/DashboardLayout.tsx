@@ -43,20 +43,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         return null;
     }
 
-    if (!isAdmin) {
-        return (
-            <div className="flex flex-col items-center justify-center h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                <h1 className="text-3xl font-bold mb-4">Access Restricted 🔒</h1>
-                <p className="text-lg mb-6">You must be a SUPER_ADMIN to access this dashboard.</p>
-                <button
-                    onClick={logout}
-                    className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                >
-                    Log Out
-                </button>
-            </div>
-        );
-    }
+
 
     // Role-based navigation items
     const navItems = isAdmin ? [
@@ -74,7 +61,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     ];
 
     return (
-        <div className="flex h-screen bg-slate-50 dark:bg-slate-900 overflow-hidden">
+        <div className="flex h-screen h-[100dvh] bg-slate-50 dark:bg-slate-900 overflow-hidden">
             {/* Sidebar */}
             <AnimatePresence mode="wait">
                 {isSidebarOpen && (
