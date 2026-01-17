@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import { FileText, ListTodo, Save, Download, Upload } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Prism } from 'react-syntax-highlighter';
@@ -16,6 +18,19 @@ export default function AdminDashboard() {
     const [taskList, setTaskList] = useState('');
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+
+    const { user, loading } = useAuth();
+    const router = useRouter();
+
+    useEffect(() => {
+        if (!loading && user?.role === 'STUDENT') {
+            router.replace('/student');
+        }
+    }, [user, loading, router]);
+
+    if (loading || user?.role === 'STUDENT') {
+        return null;
+    }
 
     useEffect(() => {
         loadDocuments();

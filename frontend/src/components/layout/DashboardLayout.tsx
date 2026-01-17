@@ -53,11 +53,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { name: "Users", href: "/dashboard/users", icon: Users },
         { name: "Settings", href: "/dashboard/settings", icon: Settings },
     ] : [
-        { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
-        { name: "Upload Answer Sheet", href: "/dashboard/upload", icon: Upload },
-        { name: "My Submissions", href: "/dashboard/answer-sheets", icon: FileText },
-        { name: "My Progress", href: "/dashboard/progress", icon: BookOpen },
-        { name: "Settings", href: "/dashboard/settings", icon: Settings },
+        { name: "Overview", href: "/student", icon: LayoutDashboard },
+        { name: "Upload Answer Sheet", href: "/student/upload", icon: Upload },
+        { name: "My Submissions", href: "/student/answer-sheets", icon: FileText },
+        { name: "Question Papers", href: "/student/question-papers", icon: BookOpen },
+        { name: "Settings", href: "/student/settings", icon: Settings },
     ];
 
     return (

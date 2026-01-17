@@ -146,7 +146,15 @@ class HuggingFaceProvider(OcrProvider):
             # Convert to data URL
             data_url = f"data:image/jpeg;base64,{self._image_to_base64(img)}"
             
-            prompt = "Analyze this image and extract ALL text, formulas, and tables. Return valid JSON only."
+            prompt = """Analyze this image and extract ALL text, formulas, and tables. 
+            Return a JSON object with this EXACT structure:
+            {
+                "text": "full extracted string",
+                "blocks": [{"text": "text segment", "confidence": 0.9}],
+                "formulas": [],
+                "tables": []
+            }
+            """
             
             messages = [
                 {
@@ -162,12 +170,13 @@ class HuggingFaceProvider(OcrProvider):
                 response = client.chat.completions.create(
                     model=model_name,
                     messages=messages,
-                    max_tokens=2048,
+                    max_tokens=4096,
                     temperature=0.1
                 )
                 content = response.choices[0].message.content
                 print(f"DEBUG: Raw model response (Page {idx+1}): {content[:500]}...", file=sys.stderr)
                 page_res = self._clean_json(content)
+                print(f"DEBUG: Parsed result (Page {idx+1}): Keys={list(page_res.keys())}, Blocks={len(page_res.get('blocks', []))}", file=sys.stderr)
                 
                 # Check if page result is valid
                 if not page_res.get("text") and not page_res.get("blocks"):

@@ -54,7 +54,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     Cookies.set("refreshToken", refreshToken, { expires: 7 });
     Cookies.set("user", JSON.stringify(userData), { expires: 7 });
     setUser(userData);
-    router.push("/dashboard");
+    const targetPath = userData.role === 'SUPER_ADMIN' ? "/dashboard" : "/student";
+    router.push(targetPath);
   };
 
   const logout = () => {
