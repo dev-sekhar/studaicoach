@@ -386,4 +386,53 @@ export class OcrService {
             throw new Error(`Failed to extract text with ${provider}: ${error.message}`);
         }
     }
+
+    /**
+     * Perform detailed performance analysis using the separate analysis script
+     */
+    async performAnalysis(imagePath: string, context: { board?: string, grade?: string, subject?: string } = {}): Promise<any> {
+        try {
+            console.log('🧠 Starting AI Performance Analysis...');
+
+            // Resolve script path - check dist first, then src fallback
+            let scriptPath = path.join(__dirname, 'universal_analysis.py');
+            if (!require('fs').existsSync(scriptPath)) {
+                // Fallback to src location during dev/if not copied
+                scriptPath = path.join(process.cwd(), 'src/ocr/universal_analysis.py');
+                console.log(`  DO: Switching to source script path: ${scriptPath}`);
+            }
+
+            const ocrApiKey = this.configService.get('OCR_API_KEY');
+            const ocrModel = this.configService.get('OCR_MODEL');
+
+            const board = context.board || 'General';
+            const grade = context.grade || 'General';
+            const subject = context.subject || 'General';
+
+            const { stdout, stderr } = await execAsync(`python "${scriptPath}" "${imagePath}" --provider huggingface --board "${board}" --grade "${grade}" --subject "${subject}"`, {
+                env: {
+                    ...process.env,
+                    OCR_API_KEY: ocrApiKey,
+                    OCR_MODEL: ocrModel
+                }
+            });
+
+            if (stderr) {
+                console.log('  Analysis Debug:', stderr);
+            }
+
+            const result = JSON.parse(stdout.trim());
+            console.log('  ✅ Analysis completed successfully');
+            return result;
+
+        } catch (error) {
+            console.error('❌ Analysis failed:', error.message);
+            // Return empty analysis rather than failing the whole process
+            return {
+                evaluation: { total_marks: 0, obtained_marks: 0, summary_text: "Analysis failed" },
+                sections: [],
+                topics: []
+            };
+        }
+    }
 }

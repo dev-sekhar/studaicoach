@@ -48,6 +48,30 @@ export class OcrProcessor {
             // Process the file directly (works for both PDFs and images)
             const result = await this.ocrService.extractText(filePath);
 
+            // NEW: Update status to indicate Analysis phase
+            await this.prisma.answerSheet.update({
+                where: { id: answerSheetId },
+                data: { notes: "AI Coach is Analyzing Performance..." }
+            });
+
+            // Fetch context for Analysis (Board, Grade, Subject)
+            const answerSheetRequest = await this.prisma.answerSheet.findUnique({
+                where: { id: answerSheetId },
+                include: {
+                    student: true,
+                    subject: true
+                }
+            });
+
+            const context = {
+                board: answerSheetRequest?.student?.board?.toString(),
+                grade: answerSheetRequest?.student?.grade?.toString(),
+                subject: answerSheetRequest?.subject?.name
+            };
+
+            // NEW: Perform separate Analysis Step with Context
+            const analysisResult = await this.ocrService.performAnalysis(filePath, context);
+
             const ocrResults = [{
                 pageNumber: 1,
                 text: result.text,
@@ -67,9 +91,9 @@ export class OcrProcessor {
                 data: {
                     answerSheetId,
                     extractedText: ocrResults.map(p => p.text).join('\n\n'),
-                    identifiedTopics: [],
-                    evaluation: "",
-                    recommendations: "",
+                    identifiedTopics: analysisResult.topics || [],
+                    evaluation: analysisResult.evaluation || {},
+                    recommendations: analysisResult.sections || [], // Storing sections in recommendations for now or separate field if available
                     processedAt: new Date(),
                     processingTimeMs: Date.now() - job.timestamp,
                 },

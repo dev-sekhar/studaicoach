@@ -12,7 +12,7 @@ export function useAnswerSheets(studentId?: string, options?: { refetchInterval?
             return data;
         },
         enabled: !!studentId,
-        staleTime: 2 * 60 * 1000, // 2 minutes
+        staleTime: 0, // Always fetch fresh data to catch new uploads/status changes
         refetchInterval: options?.refetchInterval,
     });
 }

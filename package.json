@@ -1,16 +1,19 @@
 {
   "name": "studaicoach",
+  "license": "MIT",
   "version": "1.0.0",
   "main": "index.js",
   "repository": "https://github.com/dev-sekhar/studaicoach.git",
   "author": "dev.sekhar <dev.sekhar@gmail.com>",
   "scripts": {
     "dev": "concurrently \"yarn dev:backend\" \"yarn dev:frontend\"",
+    "redis:start": "docker run -d -p 6379:6379 --name studai-redis redis:alpine",
     "dev:backend": "cd backend && yarn start:dev",
     "dev:frontend": "cd frontend && yarn dev",
     "install:all": "yarn install && cd backend && yarn install && cd frontend && yarn install"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^9.2.1",
+    "wait-on": "^9.0.3"
   }
 }

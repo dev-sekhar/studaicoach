@@ -134,8 +134,12 @@ export default function StudentAnswerSheetsPage() {
                                                 <span>•</span>
                                                 <span>{new Date(sheet.uploadedAt).toLocaleDateString()}</span>
                                             </div>
-                                            {sheet.processingStatus === 'FAILED' && sheet.notes && (
-                                                <div className="mt-2 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded">
+                                            {(sheet.processingStatus === 'FAILED' || sheet.processingStatus === 'PROCESSING') && sheet.notes && (
+                                                <div className={`mt-2 text-xs px-2 py-1 rounded ${sheet.processingStatus === 'FAILED'
+                                                        ? 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20'
+                                                        : 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                                                    }`}>
+                                                    {sheet.processingStatus === 'PROCESSING' && <Loader2 size={10} className="inline mr-1 animate-spin" />}
                                                     {sheet.notes}
                                                 </div>
                                             )}

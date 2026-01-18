@@ -140,22 +140,30 @@ class HuggingFaceProvider(OcrProvider):
         pages_processed = 0
 
         for idx, img in enumerate(images):
-            print(f"DEBUG: Processing page {idx+1}...", file=sys.stderr)
-            
-            # Resize logic if needed (skipping for now)
-            # Convert to data URL
+            # Debug image size
+            print(f"DEBUG: Processing image size: {img.size}", file=sys.stderr, flush=True)
             data_url = f"data:image/jpeg;base64,{self._image_to_base64(img)}"
+
+            prompt = """
+            Extract ALL text from this page.
+            CRITICAL: Maintain original formatting using Markdown (headers, lists, bold).
             
-            prompt = """Analyze this image and extract ALL text, formulas, and tables. 
-            Return a JSON object with this EXACT structure:
+            Identify:
+            1. Printed Text.
+            2. Handwriting (preserve placement).
+            3. Formulas ($latex$) and Tables (markdown tables).
+            
+            Output a valid JSON object with:
             {
-                "text": "full extracted string",
-                "blocks": [{"text": "text segment", "confidence": 0.9}],
+                "text": "full text with markdown formatting",
+                "blocks": [{"text": "segment", "confidence": 0.9, "type": "handwritten|printed"}],
                 "formulas": [],
                 "tables": []
             }
             """
             
+            print(f"DEBUG: Prompt sent to model (Page {idx+1}): {prompt[:50]}...", file=sys.stderr, flush=True)
+
             messages = [
                 {
                     "role": "user",
@@ -166,46 +174,56 @@ class HuggingFaceProvider(OcrProvider):
                 }
             ]
             
-            try:
-                response = client.chat.completions.create(
-                    model=model_name,
-                    messages=messages,
-                    max_tokens=4096,
-                    temperature=0.1
-                )
-                content = response.choices[0].message.content
-                print(f"DEBUG: Raw model response (Page {idx+1}): {content[:500]}...", file=sys.stderr)
-                page_res = self._clean_json(content)
-                print(f"DEBUG: Parsed result (Page {idx+1}): Keys={list(page_res.keys())}, Blocks={len(page_res.get('blocks', []))}", file=sys.stderr)
-                
-                # Check if page result is valid
-                if not page_res.get("text") and not page_res.get("blocks"):
-                    print(f"DEBUG: Page {idx+1} returned empty content.", file=sys.stderr)
-                    if idx == 0:
-                        raise Exception("First page failed to extract any content. Aborting.")
-                
-                # Aggregate
-                compiled_result["text"] += page_res.get("text", "") + "\n\n"
-                compiled_result["blocks"].extend(page_res.get("blocks", []))
-                compiled_result["formulas"].extend(page_res.get("formulas", []))
-                compiled_result["tables"].extend(page_res.get("tables", []))
-                
-                conf = page_res.get("confidence", 0)
-                if conf > 0:
-                    total_confidence += conf
-                    pages_processed += 1
-                
-                # Rate limit protection
-                time.sleep(1)
+            # Retry Logic
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    response = client.chat.completions.create(
+                        model=model_name,
+                        messages=messages,
+                        max_tokens=4096,
+                        temperature=0.1
+                    )
+                    content = response.choices[0].message.content
+                    print(f"DEBUG: Raw model response (Page {idx+1}): {content[:200]}...", file=sys.stderr, flush=True)
                     
-            except Exception as e:
-                print(f"DEBUG: Error on page {idx+1}: {str(e)}", file=sys.stderr)
-                if hasattr(e, 'response') and hasattr(e.response, 'text'):
-                     print(f"DEBUG: API Error Detail: {e.response.text}", file=sys.stderr)
-                
-                # Break immediately if it's the first page or critical error
-                if idx == 0:
-                     self._fail(f"Critical failure on page 1: {str(e)}")
+                    # Manual construction since we dropped JSON for debugging
+                    page_res = {
+                        "text": content,
+                        "blocks": [{"text": content, "confidence": 0.8}],
+                        "formulas": [],
+                        "tables": []
+                    }
+                    
+                    # Check if page result is valid
+                    if not page_res.get("text") and not page_res.get("blocks"):
+                        raise Exception("Empty content returned")
+                    
+                    # Aggregate
+                    compiled_result["text"] += f"\n\n--- Page {idx+1} ---\n\n" + page_res.get("text", "")
+                    compiled_result["blocks"].extend(page_res.get("blocks", []))
+                    compiled_result["formulas"].extend(page_res.get("formulas", []))
+                    compiled_result["tables"].extend(page_res.get("tables", []))
+                    
+                    conf = page_res.get("confidence", 0)
+                    if conf > 0:
+                        total_confidence += conf
+                        pages_processed += 1
+                    
+                    # Break retry loop on success
+                    break
+                    
+                except Exception as e:
+                    print(f"DEBUG: Error on page {idx+1} (Attempt {attempt+1}/{max_retries}): {str(e)}", file=sys.stderr)
+                    if attempt < max_retries - 1:
+                        time.sleep(2 * (attempt + 1)) # Backoff: 2s, 4s, 6s
+                    else:
+                        print(f"DEBUG: Failed to process page {idx+1} after retries.", file=sys.stderr)
+                        compiled_result["text"] += f"\n\n--- Page {idx+1} (Failed) ---\n\n[OCR Failed for this page]"
+                        # Don't fail the whole document, just mark this page as failed
+
+            # Rate limit protection between pages
+            time.sleep(1)
 
 
         if pages_processed > 0:
