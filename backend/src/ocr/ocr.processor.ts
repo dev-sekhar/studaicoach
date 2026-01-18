@@ -45,15 +45,6 @@ export class OcrProcessor {
             // Google Cloud Vision can process PDFs directly - no need to convert!
             console.log(`📄 Processing file: ${filePath} (${fileType})`);
 
-            // Process the file directly (works for both PDFs and images)
-            const result = await this.ocrService.extractText(filePath);
-
-            // NEW: Update status to indicate Analysis phase
-            await this.prisma.answerSheet.update({
-                where: { id: answerSheetId },
-                data: { notes: "AI Coach is Analyzing Performance..." }
-            });
-
             // Fetch context for Analysis (Board, Grade, Subject)
             const answerSheetRequest = await this.prisma.answerSheet.findUnique({
                 where: { id: answerSheetId },
@@ -66,8 +57,22 @@ export class OcrProcessor {
             const context = {
                 board: answerSheetRequest?.student?.board?.toString(),
                 grade: answerSheetRequest?.student?.grade?.toString(),
-                subject: answerSheetRequest?.subject?.name
+                subject: answerSheetRequest?.subject?.name,
+                preprocess: true // Enable preprocessing by default for better quality
             };
+
+            // Process the file directly (works for both PDFs and images)
+            const result = await this.ocrService.extractText(filePath, {
+                subject: context.subject,
+                preprocess: context.preprocess
+            });
+
+            // NEW: Update status to indicate Analysis phase
+            await this.prisma.answerSheet.update({
+                where: { id: answerSheetId },
+                data: { notes: "AI Coach is Analyzing Performance..." }
+            });
+
 
             // NEW: Perform separate Analysis Step with Context
             const analysisResult = await this.ocrService.performAnalysis(filePath, context);

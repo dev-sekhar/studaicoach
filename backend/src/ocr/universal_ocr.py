@@ -4,20 +4,74 @@ import base64
 import os
 import argparse
 from io import BytesIO
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import traceback
 import time
+import re
+
+try:
+    import cv2
+    import numpy as np
+    from PIL import Image
+    OPENCV_AVAILABLE = True
+except ImportError:
+    OPENCV_AVAILABLE = False
 
 class OcrProvider:
     def process(self, file_path: str) -> Dict[str, Any]:
         raise NotImplementedError
 
-    def _convert_pdf_to_images(self, pdf_path: str):
+    def _preprocess_image(self, pil_img):
+        if not OPENCV_AVAILABLE:
+            print("DEBUG: OpenCV not available, skipping preprocessing", file=sys.stderr)
+            return pil_img
+
+        try:
+            print("DEBUG: Preprocessing image with OpenCV...", file=sys.stderr)
+            # Convert PIL to OpenCV (BGR)
+            open_cv_image = np.array(pil_img)
+            if len(open_cv_image.shape) == 3:
+                open_cv_image = cv2.cvtColor(open_cv_image, cv2.COLOR_RGB2BGR)
+
+            # 1. Grayscale
+            gray = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2GRAY)
+
+            # 2. Denoise
+            denoised = cv2.fastNlMeansDenoising(gray, h=10)
+
+            # 3. Threshold (Otsu's Binarization)
+            _, thresh = cv2.threshold(denoised, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+            # 4. Deskew (Basic)
+            coords = np.column_stack(np.where(thresh > 0))
+            angle = cv2.minAreaRect(coords)[-1]
+            if angle < -45:
+                angle = -(90 + angle)
+            else:
+                angle = -angle
+
+            (h, w) = open_cv_image.shape[:2]
+            center = (w // 2, h // 2)
+            M = cv2.getRotationMatrix2D(center, angle, 1.0)
+            rotated = cv2.warpAffine(open_cv_image, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+
+            # Convert back to PIL
+            rotated_rgb = cv2.cvtColor(rotated, cv2.COLOR_BGR2RGB)
+            return Image.fromarray(rotated_rgb)
+        except Exception as e:
+            print(f"DEBUG: Preprocessing failed: {e}", file=sys.stderr)
+            return pil_img
+
+    def _convert_pdf_to_images(self, pdf_path: str, preprocess: bool = False):
         try:
             from pdf2image import convert_from_path
             print("DEBUG: Converting PDF to images...", file=sys.stderr)
             images = convert_from_path(pdf_path, dpi=200)
             print(f"DEBUG: Converted {len(images)} pages", file=sys.stderr)
+
+            if preprocess:
+                images = [self._preprocess_image(img) for img in images]
+
             return images
         except ImportError:
             self._fail("Missing dependency: pdf2image. Install: pip install pdf2image")
@@ -30,31 +84,52 @@ class OcrProvider:
         return base64.b64encode(buffered.getvalue()).decode('utf-8')
 
     def _clean_json(self, text: str) -> Dict[str, Any]:
+        """
+        Robustly extracts and parses JSON from a string that might contain
+        markdown code blocks, trailing commas, or other common LLM output noise.
+        """
         text = text.strip()
-        if text.startswith("```"):
-            lines = text.split('\n')
-            if lines[0].startswith("```"):
-                text = "\n".join(lines[1:])
-            if text.endswith("```"):
-                text = text[:-3]
+
+        # 1. Remove Markdown code blocks if present
+        if "```" in text:
+            # Try to find content between ```json and ``` or just ``` and ```
+            json_match = re.search(r'```(?:json)?\s*(.*?)\s*```', text, re.DOTALL)
+            if json_match:
+                text = json_match.group(1)
+
         text = text.strip()
+
+        # 2. Try direct parsing
         try:
             return json.loads(text)
         except json.JSONDecodeError:
-            start = text.find('{')
-            end = text.rfind('}')
-            if start != -1 and end != -1:
-                try:
-                    return json.loads(text[start:end+1])
-                except:
-                    pass
-            return {
-                "text": text,
-                "confidence": 0.5,
-                "blocks": [{"text": text, "confidence": 0.5}],
-                "formulas": [],
-                "tables": []
-            }
+            pass
+
+        # 3. If direct fails, try to find the outermost {}
+        start = text.find('{')
+        end = text.rfind('}')
+        if start != -1 and end != -1:
+            candidate = text[start:end+1]
+
+            # 3.1 Pre-processing the candidate to fix common issues
+            # Remove trailing commas before closing braces/brackets
+            candidate = re.sub(r',\s*([\]}])', r'\1', candidate)
+
+            try:
+                return json.loads(candidate)
+            except json.JSONDecodeError as e:
+                print(f"DEBUG: JSON repair attempt failed: {e}", file=sys.stderr)
+
+        # 4. Final fallback
+        print("DEBUG: Could not parse JSON, returning raw text as structured object", file=sys.stderr)
+        return {
+            "text": text,
+            "confidence": 0.4,
+            "blocks": [{"text": text, "confidence": 0.4, "type": "raw_output"}],
+            "formulas": [],
+            "tables": [],
+            "error_parsing": True
+        }
 
     def _fail(self, message: str):
         print(json.dumps({'error': message}), file=sys.stderr)
@@ -70,7 +145,7 @@ class OcrProvider:
         return os.getenv('OCR_MODEL', default)
 
 class GeminiProvider(OcrProvider):
-    def process(self, file_path: str) -> Dict[str, Any]:
+    def process(self, file_path: str, subject: Optional[str] = None, preprocess: bool = False) -> Dict[str, Any]:
         try:
             import google.generativeai as genai
         except ImportError:
@@ -84,22 +159,24 @@ class GeminiProvider(OcrProvider):
         try:
             print(f"DEBUG: Initializing Gemini model {model_name}...", file=sys.stderr)
             model = genai.GenerativeModel(model_name)
-            images = self._convert_pdf_to_images(file_path)
+            images = self._convert_pdf_to_images(file_path, preprocess=preprocess)
+
+            subject_hint = f" The subject is {subject}." if subject else ""
             
             # Gemini accepts PIL images directly in the list
             # We construct the parts list
             parts = []
-            prompt = """
-            Analyze this document and extract ALL text (handwritten and printed).
+            prompt = f"""
+            Analyze this document and extract ALL text (handwritten and printed).{subject_hint}
             Return a JSON object with this exact structure:
-            {
+            {{
                 "text": "full extracted text",
                 "confidence": 0.95,
-                "blocks": [{"text": "block text", "confidence": 0.9, "type": "handwritten or printed"}],
+                "blocks": [{{ "text": "block text", "confidence": 0.9, "type": "handwritten or printed" }}],
                 "formulas": ["LaTeX formula"],
-                "tables": [{"markdown": "table markdown"}]
-            }
-            IMPORTANT: Return ONLY valid JSON, no markdown formatting.
+                "tables": [{{ "markdown": "table markdown" }}]
+            }}
+            IMPORTANT: Return ONLY valid JSON. Focus on accuracy for {subject if subject else 'all content'}.
             """
             parts.append(prompt)
             parts.extend(images) # Gemini python SDK handles PIL images
@@ -114,7 +191,7 @@ class GeminiProvider(OcrProvider):
             self._fail(f"Gemini processing error: {str(e)}")
 
 class HuggingFaceProvider(OcrProvider):
-    def process(self, file_path: str) -> Dict[str, Any]:
+    def process(self, file_path: str, subject: Optional[str] = None, preprocess: bool = False) -> Dict[str, Any]:
         try:
             from huggingface_hub import InferenceClient
         except ImportError:
@@ -125,7 +202,7 @@ class HuggingFaceProvider(OcrProvider):
         
         client = InferenceClient(api_key=api_key)
         
-        images = self._convert_pdf_to_images(file_path)
+        images = self._convert_pdf_to_images(file_path, preprocess=preprocess)
         
         compiled_result = {
             "text": "",
@@ -139,13 +216,15 @@ class HuggingFaceProvider(OcrProvider):
         total_confidence = 0
         pages_processed = 0
 
+        subject_hint = f" The subject is {subject}." if subject else ""
+
         for idx, img in enumerate(images):
             # Debug image size
             print(f"DEBUG: Processing image size: {img.size}", file=sys.stderr, flush=True)
             data_url = f"data:image/jpeg;base64,{self._image_to_base64(img)}"
 
-            prompt = """
-            Extract ALL text from this page.
+            prompt = f"""
+            Extract ALL text from this page.{subject_hint}
             CRITICAL: Maintain original formatting using Markdown (headers, lists, bold).
             
             Identify:
@@ -154,12 +233,12 @@ class HuggingFaceProvider(OcrProvider):
             3. Formulas ($latex$) and Tables (markdown tables).
             
             Output a valid JSON object with:
-            {
+            {{
                 "text": "full text with markdown formatting",
-                "blocks": [{"text": "segment", "confidence": 0.9, "type": "handwritten|printed"}],
+                "blocks": [{{ "text": "segment", "confidence": 0.9, "type": "handwritten|printed" }}],
                 "formulas": [],
                 "tables": []
-            }
+            }}
             """
             
             print(f"DEBUG: Prompt sent to model (Page {idx+1}): {prompt[:50]}...", file=sys.stderr, flush=True)
@@ -236,6 +315,8 @@ def main():
     parser = argparse.ArgumentParser(description='Universal OCR Script')
     parser.add_argument('file_path', help='Path to the PDF/Image file')
     parser.add_argument('--provider', default=os.getenv('OCR_PROVIDER', 'gemini'), help='OCR provider (gemini, huggingface)')
+    parser.add_argument('--subject', default=None, help='Subject hint for OCR')
+    parser.add_argument('--preprocess', action='store_true', help='Apply OpenCV preprocessing')
     
     args = parser.parse_args()
     
@@ -251,7 +332,7 @@ def main():
         
     try:
         processor = provider_class()
-        result = processor.process(args.file_path)
+        result = processor.process(args.file_path, subject=args.subject, preprocess=args.preprocess)
         print("DEBUG: Successfully parsed JSON", file=sys.stderr)
         print(json.dumps(result))
     except Exception as e:

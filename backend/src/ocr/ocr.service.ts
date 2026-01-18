@@ -41,19 +41,19 @@ export class OcrService {
     /**
      * Extract text from image using configured OCR provider
      */
-    async extractText(imagePath: string): Promise<OcrResult> {
+    async extractText(imagePath: string, context: { subject?: string, preprocess?: boolean } = {}): Promise<OcrResult> {
         console.log(`🔍 Extracting text using ${this.ocrProvider}...`);
 
         switch (this.ocrProvider) {
             case 'gemini':
-                return this.extractTextWithPython(imagePath, 'gemini');
+                return this.extractTextWithPython(imagePath, 'gemini', context);
             case 'huggingface':
-                return this.extractTextWithPython(imagePath, 'huggingface');
+                return this.extractTextWithPython(imagePath, 'huggingface', context);
             case 'google-vision':
                 return this.extractTextWithGoogleVision(imagePath);
             default:
                 console.warn(`⚠️ Unknown OCR provider: ${this.ocrProvider}, falling back to Gemini`);
-                return this.extractTextWithPython(imagePath, 'gemini');
+                return this.extractTextWithPython(imagePath, 'gemini', context);
         }
     }
 
@@ -308,7 +308,7 @@ export class OcrService {
     /**
      * Extract text using the universal Python OCR script
      */
-    private async extractTextWithPython(imagePath: string, provider: string): Promise<OcrResult> {
+    private async extractTextWithPython(imagePath: string, provider: string, context: { subject?: string, preprocess?: boolean } = {}): Promise<OcrResult> {
         try {
             console.log(`🤖 Using ${provider} via Universal OCR Script...`);
             console.log(`  File path: ${imagePath}`);
@@ -321,12 +321,17 @@ export class OcrService {
             }
 
             const ocrModel = this.configService.get('OCR_MODEL');
+            const subject = context.subject || '';
+            const preprocessFlag = context.preprocess ? '--preprocess' : '';
 
             // Use generic universal script
             const scriptPath = path.join(__dirname, 'universal_ocr.py');
 
             // Execute Python script
-            const { stdout, stderr } = await execAsync(`python "${scriptPath}" "${imagePath}" --provider ${provider}`, {
+            const command = `python "${scriptPath}" "${imagePath}" --provider ${provider} --subject "${subject}" ${preprocessFlag}`;
+            console.log(`  Executing: ${command}`);
+
+            const { stdout, stderr } = await execAsync(command, {
                 env: {
                     ...process.env,
                     OCR_API_KEY: ocrApiKey,
