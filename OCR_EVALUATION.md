@@ -14,6 +14,8 @@ The current OCR system is a hybrid multi-engine implementation designed to handl
 ### Weaknesses:
 - **Lack of Image Preprocessing**: Images are sent to APIs exactly as received. No denoising, deskewing, or contrast enhancement is performed, which often leads to lower accuracy for handwriting and low-quality scans.
 - **Brittle JSON Parsing**: The current JSON extraction logic in Python can fail if the LLM output is slightly malformed or contains markdown noise.
+- **API Sensitivity to Image Size**: Large high-resolution images (e.g., 200+ DPI A4 pages) can trigger 500 errors or timeouts in some LLM providers (especially Hugging Face/Hyperbolic).
+- **Quota Limitations**: Multi-page documents consume tokens rapidly, often leading to "402 Payment Required" errors mid-processing.
 - **Fixed Prompting**: Prompts are generic and do not adapt to the specific subject (e.g., Math vs. English).
 - **Sequential Processing**: Multi-page documents are processed page-by-page (for Hugging Face), which is slow.
 - **No Ensemble Verification**: There is no mechanism to cross-verify results between different engines for high-stakes fields.
@@ -24,8 +26,10 @@ The current OCR system is a hybrid multi-engine implementation designed to handl
 
 ### Phase 1: Immediate Quality Improvements (Implemented)
 - **Image Preprocessing Pipeline**: Integrate OpenCV to automatically deskew, denoise, and normalize images before sending them to the OCR engine.
+- **Dynamic Resizing**: Automatically downscale images to a maximum dimension (e.g., 1500px) to ensure compatibility with LLM API limits and reduce latency.
 - **Robust JSON Extraction**: Implement a more advanced JSON parser that can handle common LLM formatting errors (trailing commas, nested blocks, etc.).
 - **Subject-Specific Hints**: Allow passing subject metadata (Math, Science, etc.) to tailor the OCR prompt for better formula and technical term recognition.
+- **Improved Error Resilience**: Enhanced retry logic with adaptive backoff and specific handling for quota/payment errors (402).
 
 ### Phase 2: Structural Enhancements
 - **Ensemble Voting**: Implement a verification layer that uses a fast engine (Google Vision) for baseline and a sophisticated engine (Gemini) for verification of critical areas.

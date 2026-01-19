@@ -21,17 +21,28 @@ class OcrProvider:
     def process(self, file_path: str) -> Dict[str, Any]:
         raise NotImplementedError
 
-    def _preprocess_image(self, pil_img):
+    def _preprocess_image(self, pil_img, max_dim: int = 1500):
         if not OPENCV_AVAILABLE:
             print("DEBUG: OpenCV not available, skipping preprocessing", file=sys.stderr)
             return pil_img
 
         try:
-            print("DEBUG: Preprocessing image with OpenCV...", file=sys.stderr)
+            print(f"DEBUG: Preprocessing image with OpenCV (max_dim={max_dim})...", file=sys.stderr)
             # Convert PIL to OpenCV (BGR)
             open_cv_image = np.array(pil_img)
             if len(open_cv_image.shape) == 3:
                 open_cv_image = cv2.cvtColor(open_cv_image, cv2.COLOR_RGB2BGR)
+
+            (h, w) = open_cv_image.shape[:2]
+
+            # 0. Resize if too large
+            if max(h, w) > max_dim:
+                scale = max_dim / max(h, w)
+                new_w = int(w * scale)
+                new_h = int(h * scale)
+                print(f"DEBUG: Resizing from {w}x{h} to {new_w}x{new_h}", file=sys.stderr)
+                open_cv_image = cv2.resize(open_cv_image, (new_w, new_h), interpolation=cv2.INTER_AREA)
+                (h, w) = open_cv_image.shape[:2]
 
             # 1. Grayscale
             gray = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2GRAY)
@@ -293,12 +304,23 @@ class HuggingFaceProvider(OcrProvider):
                     break
                     
                 except Exception as e:
-                    print(f"DEBUG: Error on page {idx+1} (Attempt {attempt+1}/{max_retries}): {str(e)}", file=sys.stderr)
+                    error_msg = str(e)
+                    print(f"DEBUG: Error on page {idx+1} (Attempt {attempt+1}/{max_retries}): {error_msg}", file=sys.stderr)
+
+                    # If it's a 402 Payment Required, don't bother retrying
+                    if "402" in error_msg or "Payment Required" in error_msg:
+                        print(f"DEBUG: Quota exceeded or payment required. Stopping retries for this provider.", file=sys.stderr)
+                        compiled_result["text"] += f"\n\n--- Page {idx+1} (Failed) ---\n\n[Quota Exceeded]"
+                        return compiled_result
+
                     if attempt < max_retries - 1:
-                        time.sleep(2 * (attempt + 1)) # Backoff: 2s, 4s, 6s
+                        # Adaptive backoff
+                        wait_time = 5 * (attempt + 1)
+                        print(f"DEBUG: Waiting {wait_time}s before retry...", file=sys.stderr)
+                        time.sleep(wait_time)
                     else:
                         print(f"DEBUG: Failed to process page {idx+1} after retries.", file=sys.stderr)
-                        compiled_result["text"] += f"\n\n--- Page {idx+1} (Failed) ---\n\n[OCR Failed for this page]"
+                        compiled_result["text"] += f"\n\n--- Page {idx+1} (Failed) ---\n\n[OCR Failed: {error_msg[:100]}]"
                         # Don't fail the whole document, just mark this page as failed
 
             # Rate limit protection between pages
