@@ -332,6 +332,8 @@ export class OcrService {
             console.log(`  Executing: ${command}`);
 
             const { stdout, stderr } = await execAsync(command, {
+                timeout: 300000, // 5 minutes timeout
+                maxBuffer: 10 * 1024 * 1024, // 10MB buffer
                 env: {
                     ...process.env,
                     OCR_API_KEY: ocrApiKey,
@@ -415,6 +417,8 @@ export class OcrService {
             const subject = context.subject || 'General';
 
             const { stdout, stderr } = await execAsync(`python "${scriptPath}" "${imagePath}" --provider huggingface --board "${board}" --grade "${grade}" --subject "${subject}"`, {
+                timeout: 300000, // 5 minutes timeout
+                maxBuffer: 10 * 1024 * 1024, // 10MB buffer
                 env: {
                     ...process.env,
                     OCR_API_KEY: ocrApiKey,

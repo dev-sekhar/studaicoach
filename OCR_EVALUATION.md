@@ -30,6 +30,8 @@ The current OCR system is a hybrid multi-engine implementation designed to handl
 - **Robust JSON Extraction**: Implement a more advanced JSON parser that can handle common LLM formatting errors (trailing commas, nested blocks, etc.).
 - **Subject-Specific Hints**: Allow passing subject metadata (Math, Science, etc.) to tailor the OCR prompt for better formula and technical term recognition.
 - **Improved Error Resilience**: Enhanced retry logic with adaptive backoff and specific handling for quota/payment errors (402).
+- **Execution Safeguards**: Added 5-minute timeouts and buffer limits to Python process execution to prevent hung processes from blocking the backend.
+- **Job Timeout Management**: Implemented a 10-minute job-level timeout in the Bull processor to ensure answer sheets don't stay in "PROCESSING" state indefinitely if a worker crashes.
 
 ### Phase 2: Structural Enhancements
 - **Ensemble Voting**: Implement a verification layer that uses a fast engine (Google Vision) for baseline and a sophisticated engine (Gemini) for verification of critical areas.

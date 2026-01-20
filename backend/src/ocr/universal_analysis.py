@@ -6,19 +6,82 @@ import argparse
 from io import BytesIO
 import traceback
 import time
-from typing import Dict, Any, List
+import re
+from typing import Dict, Any, List, Optional
+
+try:
+    import cv2
+    import numpy as np
+    from PIL import Image
+    OPENCV_AVAILABLE = True
+except ImportError:
+    OPENCV_AVAILABLE = False
 
 class AnalysisProvider:
     def process(self, file_path: str, board: str = "General", grade: str = "General", subject: str = "General") -> Dict[str, Any]:
         raise NotImplementedError
 
-    # ... (rest of helper methods same)
+    def _preprocess_image(self, pil_img, max_dim: int = 1500):
+        if not OPENCV_AVAILABLE:
+            print("DEBUG: OpenCV not available, skipping preprocessing", file=sys.stderr)
+            return pil_img
 
-    def _convert_pdf_to_images(self, pdf_path: str):
+        try:
+            print(f"DEBUG: Preprocessing image with OpenCV (max_dim={max_dim})...", file=sys.stderr)
+            # Convert PIL to OpenCV (BGR)
+            open_cv_image = np.array(pil_img)
+            if len(open_cv_image.shape) == 3:
+                open_cv_image = cv2.cvtColor(open_cv_image, cv2.COLOR_RGB2BGR)
+
+            (h, w) = open_cv_image.shape[:2]
+
+            # 0. Resize if too large
+            if max(h, w) > max_dim:
+                scale = max_dim / max(h, w)
+                new_w = int(w * scale)
+                new_h = int(h * scale)
+                print(f"DEBUG: Resizing from {w}x{h} to {new_w}x{new_h}", file=sys.stderr)
+                open_cv_image = cv2.resize(open_cv_image, (new_w, new_h), interpolation=cv2.INTER_AREA)
+                (h, w) = open_cv_image.shape[:2]
+
+            # 1. Grayscale
+            gray = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2GRAY)
+
+            # 2. Denoise
+            denoised = cv2.fastNlMeansDenoising(gray, h=10)
+
+            # 3. Threshold (Otsu's Binarization)
+            _, thresh = cv2.threshold(denoised, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+            # 4. Deskew (Basic)
+            coords = np.column_stack(np.where(thresh > 0))
+            angle = cv2.minAreaRect(coords)[-1]
+            if angle < -45:
+                angle = -(90 + angle)
+            else:
+                angle = -angle
+
+            (h, w) = open_cv_image.shape[:2]
+            center = (w // 2, h // 2)
+            M = cv2.getRotationMatrix2D(center, angle, 1.0)
+            rotated = cv2.warpAffine(open_cv_image, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+
+            # Convert back to PIL
+            rotated_rgb = cv2.cvtColor(rotated, cv2.COLOR_BGR2RGB)
+            return Image.fromarray(rotated_rgb)
+        except Exception as e:
+            print(f"DEBUG: Preprocessing failed: {e}", file=sys.stderr)
+            return pil_img
+
+    def _convert_pdf_to_images(self, pdf_path: str, preprocess: bool = True):
         try:
             from pdf2image import convert_from_path
             print("DEBUG: Converting PDF to images for analysis...", file=sys.stderr)
             images = convert_from_path(pdf_path, dpi=200)
+
+            if preprocess:
+                images = [self._preprocess_image(img) for img in images]
+
             return images
         except ImportError:
             self._fail("Missing dependency: pdf2image")
@@ -39,6 +102,45 @@ class AnalysisProvider:
     
     def _get_model(self, default: str):
         return os.getenv('OCR_MODEL', default)
+
+    def _clean_json(self, text: str) -> Dict[str, Any]:
+        """
+        Robustly extracts and parses JSON from a string that might contain
+        markdown code blocks, trailing commas, or other common LLM output noise.
+        """
+        text = text.strip()
+
+        # 1. Remove Markdown code blocks if present
+        if "```" in text:
+            # Try to find content between ```json and ``` or just ``` and ```
+            json_match = re.search(r'```(?:json)?\s*(.*?)\s*```', text, re.DOTALL)
+            if json_match:
+                text = json_match.group(1)
+
+        text = text.strip()
+
+        # 2. Try direct parsing
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+
+        # 3. If direct fails, try to find the outermost {}
+        start = text.find('{')
+        end = text.rfind('}')
+        if start != -1 and end != -1:
+            candidate = text[start:end+1]
+
+            # 3.1 Pre-processing the candidate to fix common issues
+            # Remove trailing commas before closing braces/brackets
+            candidate = re.sub(r',\s*([\]}])', r'\1', candidate)
+
+            try:
+                return json.loads(candidate)
+            except json.JSONDecodeError as e:
+                print(f"DEBUG: JSON repair attempt failed: {e}", file=sys.stderr)
+
+        return None
 
 class HuggingFaceAnalyzer(AnalysisProvider):
     def process(self, file_path: str, board: str = "General", grade: str = "General", subject: str = "General") -> Dict[str, Any]:
@@ -129,8 +231,9 @@ class HuggingFaceAnalyzer(AnalysisProvider):
                     
                     # Cleanup and Parse JSON
                     try:
-                        cleaned = content.replace('```json', '').replace('```', '').strip()
-                        page_res = json.loads(cleaned)
+                        page_res = self._clean_json(content)
+                        if page_res is None:
+                            raise Exception("Could not find valid JSON in output")
                         
                         # Merge Logic
                         full_analysis["evaluation"]["total_marks"] += page_res.get("total_marks_page", 0)
@@ -149,9 +252,18 @@ class HuggingFaceAnalyzer(AnalysisProvider):
                             print(f"DEBUG: Skipping page {idx+1} analysis after parsing failures.", file=sys.stderr)
 
                 except Exception as e:
-                    print(f"DEBUG: Analysis error page {idx+1} (Attempt {attempt+1}): {e}", file=sys.stderr)
+                    error_msg = str(e)
+                    print(f"DEBUG: Analysis error page {idx+1} (Attempt {attempt+1}): {error_msg}", file=sys.stderr)
+
+                    if "402" in error_msg or "Payment Required" in error_msg:
+                        print(f"DEBUG: Quota exceeded for analysis. Stopping.", file=sys.stderr)
+                        full_analysis["evaluation"]["summary_text"] += " [Analysis stopped: Quota exceeded]"
+                        return full_analysis
+
                     if attempt < max_retries - 1:
-                        time.sleep(2 * (attempt + 1))
+                        wait_time = 5 * (attempt + 1)
+                        print(f"DEBUG: Waiting {wait_time}s before retry...", file=sys.stderr)
+                        time.sleep(wait_time)
             
             if not page_success:
                  full_analysis["evaluation"]["summary_text"] += f" [Analysis Failed for Page {idx+1}]"
