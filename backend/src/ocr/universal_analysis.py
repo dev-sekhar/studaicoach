@@ -165,14 +165,23 @@ class HuggingFaceAnalyzer(AnalysisProvider):
             "topics": []
         }
         
-        for idx, img in enumerate(images):
-            print(f"DEBUG: Analyzing page {idx+1} for {board} Grade {grade} {subject}...", file=sys.stderr)
-            data_url = f"data:image/jpeg;base64,{self._image_to_base64(img)}"
+        chunk_size = 4
+        for i in range(0, len(images), chunk_size):
+            chunk = images[i:i + chunk_size]
+            page_start = i + 1
+            page_end = i + len(chunk)
+
+            print(f"DEBUG: Analyzing pages {page_start}-{page_end} for {board} Grade {grade} {subject}...", file=sys.stderr)
+
+            content_parts = []
+            for img in chunk:
+                data_url = f"data:image/jpeg;base64,{self._image_to_base64(img)}"
+                content_parts.append({"type": "image_url", "image_url": {"url": data_url}})
             
             prompt = f"""
             You are an expert ACADEMIC COACH for {board} Board, Grade {grade}, Subject: {subject}.
             
-            Task: Analyze this page and provide a performance report.
+            Task: Analyze these {len(chunk)} pages and provide a performance report.
             
             CRITICAL: Map all topics strictly to the official {board} {subject} syllabus.
             Valid Syllabus Topics likely include terms specific to {subject} (e.g. for Physics: "Optics", "Mechanics"; for Math: "Calculus", "Vectors").
@@ -185,7 +194,7 @@ class HuggingFaceAnalyzer(AnalysisProvider):
 
             Output strictly valid JSON:
             {{
-                "page_summary": "Coach's thought on this page",
+                "summary": "Coach's thought on these pages",
                 "sections": [
                     {{
                         "name": "Derived Section Name",
@@ -200,24 +209,22 @@ class HuggingFaceAnalyzer(AnalysisProvider):
                 "topics": [
                     {{"name": "Syllabus Topic Name", "status": "Strong/Weak/Average", "remarks": "Advice based on {board} standards"}}
                 ],
-                "total_marks_page": 0,
-                "obtained_marks_page": 0
+                "total_marks": 0,
+                "obtained_marks": 0
             }}
             """
+            content_parts.append({"type": "text", "text": prompt})
             
             messages = [
                 {
                     "role": "user",
-                    "content": [
-                        {"type": "image_url", "image_url": {"url": data_url}},
-                        {"type": "text", "text": prompt}
-                    ]
+                    "content": content_parts
                 }
             ]
             
             # Retry Logic
             max_retries = 3
-            page_success = False
+            chunk_success = False
             for attempt in range(max_retries):
                 try:
                     response = client.chat.completions.create(
@@ -227,33 +234,33 @@ class HuggingFaceAnalyzer(AnalysisProvider):
                         temperature=0.1
                     )
                     content = response.choices[0].message.content
-                    print(f"DEBUG: Raw Analysis (Page {idx+1}): {content[:100]}...", file=sys.stderr)
+                    print(f"DEBUG: Raw Analysis (Pages {page_start}-{page_end}): {content[:100]}...", file=sys.stderr)
                     
                     # Cleanup and Parse JSON
                     try:
-                        page_res = self._clean_json(content)
-                        if page_res is None:
+                        chunk_res = self._clean_json(content)
+                        if chunk_res is None:
                             raise Exception("Could not find valid JSON in output")
                         
                         # Merge Logic
-                        full_analysis["evaluation"]["total_marks"] += page_res.get("total_marks_page", 0)
-                        full_analysis["evaluation"]["obtained_marks"] += page_res.get("obtained_marks_page", 0)
-                        if page_res.get("page_summary"):
-                            full_analysis["evaluation"]["summary_text"] += f"Page {idx+1}: {page_res['page_summary']} "
+                        full_analysis["evaluation"]["total_marks"] += chunk_res.get("total_marks", 0)
+                        full_analysis["evaluation"]["obtained_marks"] += chunk_res.get("obtained_marks", 0)
+                        if chunk_res.get("summary"):
+                            full_analysis["evaluation"]["summary_text"] += f"Pages {page_start}-{page_end}: {chunk_res['summary']} "
                             
-                        full_analysis["sections"].extend(page_res.get("sections", []))
-                        full_analysis["topics"].extend(page_res.get("topics", []))
-                        page_success = True
+                        full_analysis["sections"].extend(chunk_res.get("sections", []))
+                        full_analysis["topics"].extend(chunk_res.get("topics", []))
+                        chunk_success = True
                         break # Success
                         
                     except Exception as e:
-                        print(f"DEBUG: Failed to parse page analysis (Attempt {attempt+1}): {e}", file=sys.stderr)
+                        print(f"DEBUG: Failed to parse chunk analysis (Attempt {attempt+1}): {e}", file=sys.stderr)
                         if attempt == max_retries - 1:
-                            print(f"DEBUG: Skipping page {idx+1} analysis after parsing failures.", file=sys.stderr)
+                            print(f"DEBUG: Skipping pages {page_start}-{page_end} analysis after parsing failures.", file=sys.stderr)
 
                 except Exception as e:
                     error_msg = str(e)
-                    print(f"DEBUG: Analysis error page {idx+1} (Attempt {attempt+1}): {error_msg}", file=sys.stderr)
+                    print(f"DEBUG: Analysis error pages {page_start}-{page_end} (Attempt {attempt+1}): {error_msg}", file=sys.stderr)
 
                     if "402" in error_msg or "Payment Required" in error_msg:
                         print(f"DEBUG: Quota exceeded for analysis. Stopping.", file=sys.stderr)
@@ -265,8 +272,8 @@ class HuggingFaceAnalyzer(AnalysisProvider):
                         print(f"DEBUG: Waiting {wait_time}s before retry...", file=sys.stderr)
                         time.sleep(wait_time)
             
-            if not page_success:
-                 full_analysis["evaluation"]["summary_text"] += f" [Analysis Failed for Page {idx+1}]"
+            if not chunk_success:
+                 full_analysis["evaluation"]["summary_text"] += f" [Analysis Failed for Pages {page_start}-{page_end}]"
 
             time.sleep(1) # Rate limit protection
 

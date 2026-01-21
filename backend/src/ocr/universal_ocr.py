@@ -171,32 +171,73 @@ class GeminiProvider(OcrProvider):
             print(f"DEBUG: Initializing Gemini model {model_name}...", file=sys.stderr)
             model = genai.GenerativeModel(model_name)
             images = self._convert_pdf_to_images(file_path, preprocess=preprocess)
-
+            
             subject_hint = f" The subject is {subject}." if subject else ""
             
-            # Gemini accepts PIL images directly in the list
-            # We construct the parts list
-            parts = []
-            prompt = f"""
-            Analyze this document and extract ALL text (handwritten and printed).{subject_hint}
-            Return a JSON object with this exact structure:
-            {{
-                "text": "full extracted text",
-                "confidence": 0.95,
-                "blocks": [{{ "text": "block text", "confidence": 0.9, "type": "handwritten or printed" }}],
-                "formulas": ["LaTeX formula"],
-                "tables": [{{ "markdown": "table markdown" }}]
-            }}
-            IMPORTANT: Return ONLY valid JSON. Focus on accuracy for {subject if subject else 'all content'}.
-            """
-            parts.append(prompt)
-            parts.extend(images) # Gemini python SDK handles PIL images
+            compiled_result = {
+                "text": "",
+                "confidence": 0.0,
+                "blocks": [],
+                "formulas": [],
+                "tables": [],
+                "isTrustworthy": True
+            }
             
-            print("DEBUG: Sending to Gemini...", file=sys.stderr)
-            response = model.generate_content(parts)
-            print("DEBUG: Received response", file=sys.stderr)
-            
-            return self._clean_json(response.text)
+            total_confidence = 0
+            chunks_processed = 0
+            chunk_size = 4 # Process 4 pages at a time as per user request
+
+            for i in range(0, len(images), chunk_size):
+                chunk = images[i:i + chunk_size]
+                chunk_idx = (i // chunk_size) + 1
+                print(f"DEBUG: Processing Gemini chunk {chunk_idx} ({len(chunk)} pages)...", file=sys.stderr)
+
+                parts = []
+                prompt = f"""
+                Analyze these {len(chunk)} pages and extract ALL text (handwritten and printed).{subject_hint}
+                Return a JSON object with this exact structure:
+                {{
+                    "text": "full extracted text for these pages",
+                    "confidence": 0.95,
+                    "blocks": [{{ "text": "block text", "confidence": 0.9, "type": "handwritten or printed" }}],
+                    "formulas": ["LaTeX formula"],
+                    "tables": [{{ "markdown": "table markdown" }}]
+                }}
+                IMPORTANT: Return ONLY valid JSON. Focus on accuracy for {subject if subject else 'all content'}.
+                """
+                parts.append(prompt)
+                parts.extend(chunk)
+
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        response = model.generate_content(parts)
+                        res_json = self._clean_json(response.text)
+
+                        # Aggregate
+                        page_offset = i + 1
+                        compiled_result["text"] += f"\n\n--- Pages {page_offset} to {i + len(chunk)} ---\n\n" + res_json.get("text", "")
+                        compiled_result["blocks"].extend(res_json.get("blocks", []))
+                        compiled_result["formulas"].extend(res_json.get("formulas", []))
+                        compiled_result["tables"].extend(res_json.get("tables", []))
+
+                        conf = res_json.get("confidence", 0)
+                        if conf > 0:
+                            total_confidence += conf
+                            chunks_processed += 1
+                        break
+                    except Exception as e:
+                        print(f"DEBUG: Gemini chunk {chunk_idx} error (Attempt {attempt+1}): {str(e)}", file=sys.stderr)
+                        if attempt < max_retries - 1:
+                            time.sleep(2 * (attempt + 1))
+                        else:
+                            compiled_result["text"] += f"\n\n--- Pages {i+1} to {i+len(chunk)} (Failed) ---\n\n[OCR Failed]"
+
+            if chunks_processed > 0:
+                compiled_result["confidence"] = total_confidence / chunks_processed
+
+            compiled_result["isTrustworthy"] = compiled_result["confidence"] > 0.85
+            return compiled_result
             
         except Exception as e:
             self._fail(f"Gemini processing error: {str(e)}")
@@ -225,17 +266,23 @@ class HuggingFaceProvider(OcrProvider):
         }
         
         total_confidence = 0
-        pages_processed = 0
+        chunks_processed = 0
+        chunk_size = 4
 
         subject_hint = f" The subject is {subject}." if subject else ""
 
-        for idx, img in enumerate(images):
-            # Debug image size
-            print(f"DEBUG: Processing image size: {img.size}", file=sys.stderr, flush=True)
-            data_url = f"data:image/jpeg;base64,{self._image_to_base64(img)}"
+        for i in range(0, len(images), chunk_size):
+            chunk = images[i:i + chunk_size]
+            chunk_idx = (i // chunk_size) + 1
+            print(f"DEBUG: Processing HuggingFace chunk {chunk_idx} ({len(chunk)} pages)...", file=sys.stderr)
+
+            content_parts = []
+            for img in chunk:
+                data_url = f"data:image/jpeg;base64,{self._image_to_base64(img)}"
+                content_parts.append({"type": "image_url", "image_url": {"url": data_url}})
 
             prompt = f"""
-            Extract ALL text from this page.{subject_hint}
+            Extract ALL text from these {len(chunk)} pages.{subject_hint}
             CRITICAL: Maintain original formatting using Markdown (headers, lists, bold).
             
             Identify:
@@ -245,22 +292,18 @@ class HuggingFaceProvider(OcrProvider):
             
             Output a valid JSON object with:
             {{
-                "text": "full text with markdown formatting",
+                "text": "full text with markdown formatting for these pages",
                 "blocks": [{{ "text": "segment", "confidence": 0.9, "type": "handwritten|printed" }}],
                 "formulas": [],
                 "tables": []
             }}
             """
-            
-            print(f"DEBUG: Prompt sent to model (Page {idx+1}): {prompt[:50]}...", file=sys.stderr, flush=True)
+            content_parts.append({"type": "text", "text": prompt})
 
             messages = [
                 {
                     "role": "user",
-                    "content": [
-                        {"type": "image_url", "image_url": {"url": data_url}},
-                        {"type": "text", "text": prompt}
-                    ]
+                    "content": content_parts
                 }
             ]
             
@@ -275,30 +318,27 @@ class HuggingFaceProvider(OcrProvider):
                         temperature=0.1
                     )
                     content = response.choices[0].message.content
-                    print(f"DEBUG: Raw model response (Page {idx+1}): {content[:200]}...", file=sys.stderr, flush=True)
+                    print(f"DEBUG: Raw model response (Chunk {chunk_idx}): {content[:200]}...", file=sys.stderr, flush=True)
                     
-                    # Manual construction since we dropped JSON for debugging
-                    page_res = {
-                        "text": content,
-                        "blocks": [{"text": content, "confidence": 0.8}],
-                        "formulas": [],
-                        "tables": []
-                    }
+                    # Parse JSON using robust cleaner
+                    chunk_res = self._clean_json(content)
                     
-                    # Check if page result is valid
-                    if not page_res.get("text") and not page_res.get("blocks"):
+                    # Check if result is valid
+                    if not chunk_res.get("text") and not chunk_res.get("blocks"):
                         raise Exception("Empty content returned")
                     
                     # Aggregate
-                    compiled_result["text"] += f"\n\n--- Page {idx+1} ---\n\n" + page_res.get("text", "")
-                    compiled_result["blocks"].extend(page_res.get("blocks", []))
-                    compiled_result["formulas"].extend(page_res.get("formulas", []))
-                    compiled_result["tables"].extend(page_res.get("tables", []))
+                    page_start = i + 1
+                    page_end = i + len(chunk)
+                    compiled_result["text"] += f"\n\n--- Pages {page_start} to {page_end} ---\n\n" + chunk_res.get("text", "")
+                    compiled_result["blocks"].extend(chunk_res.get("blocks", []))
+                    compiled_result["formulas"].extend(chunk_res.get("formulas", []))
+                    compiled_result["tables"].extend(chunk_res.get("tables", []))
                     
-                    conf = page_res.get("confidence", 0)
+                    conf = chunk_res.get("confidence", 0)
                     if conf > 0:
                         total_confidence += conf
-                        pages_processed += 1
+                        chunks_processed += 1
                     
                     # Break retry loop on success
                     break
@@ -327,8 +367,8 @@ class HuggingFaceProvider(OcrProvider):
             time.sleep(1)
 
 
-        if pages_processed > 0:
-            compiled_result["confidence"] = total_confidence / pages_processed
+        if chunks_processed > 0:
+            compiled_result["confidence"] = total_confidence / chunks_processed
             
         compiled_result["isTrustworthy"] = compiled_result["confidence"] > 0.7
         return compiled_result
