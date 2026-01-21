@@ -132,9 +132,10 @@ export class OcrProcessor {
 
             console.log(`OCR completed. Average confidence: ${avgConfidence.toFixed(2)}, Trustworthy: ${isTrustworthy}`);
 
-            // Save analysis to database
-            const analysis = await this.prisma.answerSheetAnalysis.create({
-                data: {
+            // Save analysis to database (using upsert to avoid unique constraint errors on retries)
+            const analysis = await this.prisma.answerSheetAnalysis.upsert({
+                where: { answerSheetId },
+                create: {
                     answerSheetId,
                     extractedText: ocrResults as any,
                     identifiedTopics: analysisResult.topics || [],
@@ -143,6 +144,14 @@ export class OcrProcessor {
                     processedAt: new Date(),
                     processingTimeMs: Date.now() - job.timestamp,
                 },
+                update: {
+                    extractedText: ocrResults as any,
+                    identifiedTopics: analysisResult.topics || [],
+                    evaluation: analysisResult.evaluation || {},
+                    recommendations: analysisResult.sections || [],
+                    processedAt: new Date(),
+                    processingTimeMs: Date.now() - job.timestamp,
+                }
             });
 
             // Update answer sheet
