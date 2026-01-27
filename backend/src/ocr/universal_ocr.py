@@ -4,20 +4,85 @@ import base64
 import os
 import argparse
 from io import BytesIO
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import traceback
 import time
+import re
+
+try:
+    import cv2
+    import numpy as np
+    from PIL import Image
+    OPENCV_AVAILABLE = True
+except ImportError:
+    OPENCV_AVAILABLE = False
 
 class OcrProvider:
     def process(self, file_path: str) -> Dict[str, Any]:
         raise NotImplementedError
 
-    def _convert_pdf_to_images(self, pdf_path: str):
+    def _preprocess_image(self, pil_img, max_dim: int = 1500):
+        if not OPENCV_AVAILABLE:
+            print("DEBUG: OpenCV not available, skipping preprocessing", file=sys.stderr)
+            return pil_img
+
+        try:
+            print(f"DEBUG: Preprocessing image with OpenCV (max_dim={max_dim})...", file=sys.stderr)
+            # Convert PIL to OpenCV (BGR)
+            open_cv_image = np.array(pil_img)
+            if len(open_cv_image.shape) == 3:
+                open_cv_image = cv2.cvtColor(open_cv_image, cv2.COLOR_RGB2BGR)
+
+            (h, w) = open_cv_image.shape[:2]
+
+            # 0. Resize if too large
+            if max(h, w) > max_dim:
+                scale = max_dim / max(h, w)
+                new_w = int(w * scale)
+                new_h = int(h * scale)
+                print(f"DEBUG: Resizing from {w}x{h} to {new_w}x{new_h}", file=sys.stderr)
+                open_cv_image = cv2.resize(open_cv_image, (new_w, new_h), interpolation=cv2.INTER_AREA)
+                (h, w) = open_cv_image.shape[:2]
+
+            # 1. Grayscale
+            gray = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2GRAY)
+
+            # 2. Denoise
+            denoised = cv2.fastNlMeansDenoising(gray, h=10)
+
+            # 3. Threshold (Otsu's Binarization)
+            _, thresh = cv2.threshold(denoised, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+            # 4. Deskew (Basic)
+            coords = np.column_stack(np.where(thresh > 0))
+            angle = cv2.minAreaRect(coords)[-1]
+            if angle < -45:
+                angle = -(90 + angle)
+            else:
+                angle = -angle
+
+            (h, w) = open_cv_image.shape[:2]
+            center = (w // 2, h // 2)
+            M = cv2.getRotationMatrix2D(center, angle, 1.0)
+            rotated = cv2.warpAffine(open_cv_image, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+
+            # Convert back to PIL
+            rotated_rgb = cv2.cvtColor(rotated, cv2.COLOR_BGR2RGB)
+            return Image.fromarray(rotated_rgb)
+        except Exception as e:
+            print(f"DEBUG: Preprocessing failed: {e}", file=sys.stderr)
+            return pil_img
+
+    def _convert_pdf_to_images(self, pdf_path: str, preprocess: bool = False):
         try:
             from pdf2image import convert_from_path
             print("DEBUG: Converting PDF to images...", file=sys.stderr)
             images = convert_from_path(pdf_path, dpi=200)
             print(f"DEBUG: Converted {len(images)} pages", file=sys.stderr)
+
+            if preprocess:
+                images = [self._preprocess_image(img) for img in images]
+
             return images
         except ImportError:
             self._fail("Missing dependency: pdf2image. Install: pip install pdf2image")
@@ -30,31 +95,52 @@ class OcrProvider:
         return base64.b64encode(buffered.getvalue()).decode('utf-8')
 
     def _clean_json(self, text: str) -> Dict[str, Any]:
+        """
+        Robustly extracts and parses JSON from a string that might contain
+        markdown code blocks, trailing commas, or other common LLM output noise.
+        """
         text = text.strip()
-        if text.startswith("```"):
-            lines = text.split('\n')
-            if lines[0].startswith("```"):
-                text = "\n".join(lines[1:])
-            if text.endswith("```"):
-                text = text[:-3]
+
+        # 1. Remove Markdown code blocks if present
+        if "```" in text:
+            # Try to find content between ```json and ``` or just ``` and ```
+            json_match = re.search(r'```(?:json)?\s*(.*?)\s*```', text, re.DOTALL)
+            if json_match:
+                text = json_match.group(1)
+
         text = text.strip()
+
+        # 2. Try direct parsing
         try:
             return json.loads(text)
         except json.JSONDecodeError:
-            start = text.find('{')
-            end = text.rfind('}')
-            if start != -1 and end != -1:
-                try:
-                    return json.loads(text[start:end+1])
-                except:
-                    pass
-            return {
-                "text": text,
-                "confidence": 0.5,
-                "blocks": [{"text": text, "confidence": 0.5}],
-                "formulas": [],
-                "tables": []
-            }
+            pass
+
+        # 3. If direct fails, try to find the outermost {}
+        start = text.find('{')
+        end = text.rfind('}')
+        if start != -1 and end != -1:
+            candidate = text[start:end+1]
+
+            # 3.1 Pre-processing the candidate to fix common issues
+            # Remove trailing commas before closing braces/brackets
+            candidate = re.sub(r',\s*([\]}])', r'\1', candidate)
+
+            try:
+                return json.loads(candidate)
+            except json.JSONDecodeError as e:
+                print(f"DEBUG: JSON repair attempt failed: {e}", file=sys.stderr)
+
+        # 4. Final fallback
+        print("DEBUG: Could not parse JSON, returning raw text as structured object", file=sys.stderr)
+        return {
+            "text": text,
+            "confidence": 0.4,
+            "blocks": [{"text": text, "confidence": 0.4, "type": "raw_output"}],
+            "formulas": [],
+            "tables": [],
+            "error_parsing": True
+        }
 
     def _fail(self, message: str):
         print(json.dumps({'error': message}), file=sys.stderr)
@@ -70,7 +156,7 @@ class OcrProvider:
         return os.getenv('OCR_MODEL', default)
 
 class GeminiProvider(OcrProvider):
-    def process(self, file_path: str) -> Dict[str, Any]:
+    def process(self, file_path: str, subject: Optional[str] = None, preprocess: bool = False) -> Dict[str, Any]:
         try:
             import google.generativeai as genai
         except ImportError:
@@ -84,37 +170,80 @@ class GeminiProvider(OcrProvider):
         try:
             print(f"DEBUG: Initializing Gemini model {model_name}...", file=sys.stderr)
             model = genai.GenerativeModel(model_name)
-            images = self._convert_pdf_to_images(file_path)
+            images = self._convert_pdf_to_images(file_path, preprocess=preprocess)
             
-            # Gemini accepts PIL images directly in the list
-            # We construct the parts list
-            parts = []
-            prompt = """
-            Analyze this document and extract ALL text (handwritten and printed).
-            Return a JSON object with this exact structure:
-            {
-                "text": "full extracted text",
-                "confidence": 0.95,
-                "blocks": [{"text": "block text", "confidence": 0.9, "type": "handwritten or printed"}],
-                "formulas": ["LaTeX formula"],
-                "tables": [{"markdown": "table markdown"}]
+            subject_hint = f" The subject is {subject}." if subject else ""
+            
+            compiled_result = {
+                "text": "",
+                "confidence": 0.0,
+                "blocks": [],
+                "formulas": [],
+                "tables": [],
+                "isTrustworthy": True
             }
-            IMPORTANT: Return ONLY valid JSON, no markdown formatting.
-            """
-            parts.append(prompt)
-            parts.extend(images) # Gemini python SDK handles PIL images
             
-            print("DEBUG: Sending to Gemini...", file=sys.stderr)
-            response = model.generate_content(parts)
-            print("DEBUG: Received response", file=sys.stderr)
-            
-            return self._clean_json(response.text)
+            total_confidence = 0
+            chunks_processed = 0
+            chunk_size = 4 # Process 4 pages at a time as per user request
+
+            for i in range(0, len(images), chunk_size):
+                chunk = images[i:i + chunk_size]
+                chunk_idx = (i // chunk_size) + 1
+                print(f"DEBUG: Processing Gemini chunk {chunk_idx} ({len(chunk)} pages)...", file=sys.stderr)
+
+                parts = []
+                prompt = f"""
+                Analyze these {len(chunk)} pages and extract ALL text (handwritten and printed).{subject_hint}
+                Return a JSON object with this exact structure:
+                {{
+                    "text": "full extracted text for these pages",
+                    "confidence": 0.95,
+                    "blocks": [{{ "text": "block text", "confidence": 0.9, "type": "handwritten or printed" }}],
+                    "formulas": ["LaTeX formula"],
+                    "tables": [{{ "markdown": "table markdown" }}]
+                }}
+                IMPORTANT: Return ONLY valid JSON. Focus on accuracy for {subject if subject else 'all content'}.
+                """
+                parts.append(prompt)
+                parts.extend(chunk)
+
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        response = model.generate_content(parts)
+                        res_json = self._clean_json(response.text)
+
+                        # Aggregate
+                        page_offset = i + 1
+                        compiled_result["text"] += f"\n\n--- Pages {page_offset} to {i + len(chunk)} ---\n\n" + res_json.get("text", "")
+                        compiled_result["blocks"].extend(res_json.get("blocks", []))
+                        compiled_result["formulas"].extend(res_json.get("formulas", []))
+                        compiled_result["tables"].extend(res_json.get("tables", []))
+
+                        conf = res_json.get("confidence", 0)
+                        if conf > 0:
+                            total_confidence += conf
+                            chunks_processed += 1
+                        break
+                    except Exception as e:
+                        print(f"DEBUG: Gemini chunk {chunk_idx} error (Attempt {attempt+1}): {str(e)}", file=sys.stderr)
+                        if attempt < max_retries - 1:
+                            time.sleep(2 * (attempt + 1))
+                        else:
+                            compiled_result["text"] += f"\n\n--- Pages {i+1} to {i+len(chunk)} (Failed) ---\n\n[OCR Failed]"
+
+            if chunks_processed > 0:
+                compiled_result["confidence"] = total_confidence / chunks_processed
+
+            compiled_result["isTrustworthy"] = compiled_result["confidence"] > 0.85
+            return compiled_result
             
         except Exception as e:
             self._fail(f"Gemini processing error: {str(e)}")
 
 class HuggingFaceProvider(OcrProvider):
-    def process(self, file_path: str) -> Dict[str, Any]:
+    def process(self, file_path: str, subject: Optional[str] = None, preprocess: bool = False) -> Dict[str, Any]:
         try:
             from huggingface_hub import InferenceClient
         except ImportError:
@@ -125,7 +254,7 @@ class HuggingFaceProvider(OcrProvider):
         
         client = InferenceClient(api_key=api_key)
         
-        images = self._convert_pdf_to_images(file_path)
+        images = self._convert_pdf_to_images(file_path, preprocess=preprocess)
         
         compiled_result = {
             "text": "",
@@ -137,15 +266,23 @@ class HuggingFaceProvider(OcrProvider):
         }
         
         total_confidence = 0
-        pages_processed = 0
+        chunks_processed = 0
+        chunk_size = 4
 
-        for idx, img in enumerate(images):
-            # Debug image size
-            print(f"DEBUG: Processing image size: {img.size}", file=sys.stderr, flush=True)
-            data_url = f"data:image/jpeg;base64,{self._image_to_base64(img)}"
+        subject_hint = f" The subject is {subject}." if subject else ""
 
-            prompt = """
-            Extract ALL text from this page.
+        for i in range(0, len(images), chunk_size):
+            chunk = images[i:i + chunk_size]
+            chunk_idx = (i // chunk_size) + 1
+            print(f"DEBUG: Processing HuggingFace chunk {chunk_idx} ({len(chunk)} pages)...", file=sys.stderr)
+
+            content_parts = []
+            for img in chunk:
+                data_url = f"data:image/jpeg;base64,{self._image_to_base64(img)}"
+                content_parts.append({"type": "image_url", "image_url": {"url": data_url}})
+
+            prompt = f"""
+            Extract ALL text from these {len(chunk)} pages.{subject_hint}
             CRITICAL: Maintain original formatting using Markdown (headers, lists, bold).
             
             Identify:
@@ -154,23 +291,19 @@ class HuggingFaceProvider(OcrProvider):
             3. Formulas ($latex$) and Tables (markdown tables).
             
             Output a valid JSON object with:
-            {
-                "text": "full text with markdown formatting",
-                "blocks": [{"text": "segment", "confidence": 0.9, "type": "handwritten|printed"}],
+            {{
+                "text": "full text with markdown formatting for these pages",
+                "blocks": [{{ "text": "segment", "confidence": 0.9, "type": "handwritten|printed" }}],
                 "formulas": [],
                 "tables": []
-            }
+            }}
             """
-            
-            print(f"DEBUG: Prompt sent to model (Page {idx+1}): {prompt[:50]}...", file=sys.stderr, flush=True)
+            content_parts.append({"type": "text", "text": prompt})
 
             messages = [
                 {
                     "role": "user",
-                    "content": [
-                        {"type": "image_url", "image_url": {"url": data_url}},
-                        {"type": "text", "text": prompt}
-                    ]
+                    "content": content_parts
                 }
             ]
             
@@ -185,49 +318,57 @@ class HuggingFaceProvider(OcrProvider):
                         temperature=0.1
                     )
                     content = response.choices[0].message.content
-                    print(f"DEBUG: Raw model response (Page {idx+1}): {content[:200]}...", file=sys.stderr, flush=True)
+                    print(f"DEBUG: Raw model response (Chunk {chunk_idx}): {content[:200]}...", file=sys.stderr, flush=True)
                     
-                    # Manual construction since we dropped JSON for debugging
-                    page_res = {
-                        "text": content,
-                        "blocks": [{"text": content, "confidence": 0.8}],
-                        "formulas": [],
-                        "tables": []
-                    }
+                    # Parse JSON using robust cleaner
+                    chunk_res = self._clean_json(content)
                     
-                    # Check if page result is valid
-                    if not page_res.get("text") and not page_res.get("blocks"):
+                    # Check if result is valid
+                    if not chunk_res.get("text") and not chunk_res.get("blocks"):
                         raise Exception("Empty content returned")
                     
                     # Aggregate
-                    compiled_result["text"] += f"\n\n--- Page {idx+1} ---\n\n" + page_res.get("text", "")
-                    compiled_result["blocks"].extend(page_res.get("blocks", []))
-                    compiled_result["formulas"].extend(page_res.get("formulas", []))
-                    compiled_result["tables"].extend(page_res.get("tables", []))
+                    page_start = i + 1
+                    page_end = i + len(chunk)
+                    compiled_result["text"] += f"\n\n--- Pages {page_start} to {page_end} ---\n\n" + chunk_res.get("text", "")
+                    compiled_result["blocks"].extend(chunk_res.get("blocks", []))
+                    compiled_result["formulas"].extend(chunk_res.get("formulas", []))
+                    compiled_result["tables"].extend(chunk_res.get("tables", []))
                     
-                    conf = page_res.get("confidence", 0)
+                    conf = chunk_res.get("confidence", 0)
                     if conf > 0:
                         total_confidence += conf
-                        pages_processed += 1
+                        chunks_processed += 1
                     
                     # Break retry loop on success
                     break
                     
                 except Exception as e:
-                    print(f"DEBUG: Error on page {idx+1} (Attempt {attempt+1}/{max_retries}): {str(e)}", file=sys.stderr)
+                    error_msg = str(e)
+                    print(f"DEBUG: Error on page {idx+1} (Attempt {attempt+1}/{max_retries}): {error_msg}", file=sys.stderr)
+
+                    # If it's a 402 Payment Required, don't bother retrying
+                    if "402" in error_msg or "Payment Required" in error_msg:
+                        print(f"DEBUG: Quota exceeded or payment required. Stopping retries for this provider.", file=sys.stderr)
+                        compiled_result["text"] += f"\n\n--- Page {idx+1} (Failed) ---\n\n[Quota Exceeded]"
+                        return compiled_result
+
                     if attempt < max_retries - 1:
-                        time.sleep(2 * (attempt + 1)) # Backoff: 2s, 4s, 6s
+                        # Adaptive backoff
+                        wait_time = 5 * (attempt + 1)
+                        print(f"DEBUG: Waiting {wait_time}s before retry...", file=sys.stderr)
+                        time.sleep(wait_time)
                     else:
                         print(f"DEBUG: Failed to process page {idx+1} after retries.", file=sys.stderr)
-                        compiled_result["text"] += f"\n\n--- Page {idx+1} (Failed) ---\n\n[OCR Failed for this page]"
+                        compiled_result["text"] += f"\n\n--- Page {idx+1} (Failed) ---\n\n[OCR Failed: {error_msg[:100]}]"
                         # Don't fail the whole document, just mark this page as failed
 
             # Rate limit protection between pages
             time.sleep(1)
 
 
-        if pages_processed > 0:
-            compiled_result["confidence"] = total_confidence / pages_processed
+        if chunks_processed > 0:
+            compiled_result["confidence"] = total_confidence / chunks_processed
             
         compiled_result["isTrustworthy"] = compiled_result["confidence"] > 0.7
         return compiled_result
@@ -236,6 +377,8 @@ def main():
     parser = argparse.ArgumentParser(description='Universal OCR Script')
     parser.add_argument('file_path', help='Path to the PDF/Image file')
     parser.add_argument('--provider', default=os.getenv('OCR_PROVIDER', 'gemini'), help='OCR provider (gemini, huggingface)')
+    parser.add_argument('--subject', default=None, help='Subject hint for OCR')
+    parser.add_argument('--preprocess', action='store_true', help='Apply OpenCV preprocessing')
     
     args = parser.parse_args()
     
@@ -251,7 +394,7 @@ def main():
         
     try:
         processor = provider_class()
-        result = processor.process(args.file_path)
+        result = processor.process(args.file_path, subject=args.subject, preprocess=args.preprocess)
         print("DEBUG: Successfully parsed JSON", file=sys.stderr)
         print(json.dumps(result))
     except Exception as e:
